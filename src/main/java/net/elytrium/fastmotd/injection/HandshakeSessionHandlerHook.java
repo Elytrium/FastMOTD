@@ -67,7 +67,7 @@ public class HandshakeSessionHandlerHook implements InvocationHandler {
           return true;
         }
       } else if (args[0] instanceof StatusPing) {
-        ByteBuf buf = Unpooled.buffer(11);
+        ByteBuf buf = Unpooled.directBuffer(11);
         buf.writeByte(9);
         buf.writeByte(1);
         ((StatusPing) args[0]).encode(buf, null, null);
