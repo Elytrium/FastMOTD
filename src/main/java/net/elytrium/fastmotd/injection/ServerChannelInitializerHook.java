@@ -19,14 +19,12 @@ package net.elytrium.fastmotd.injection;
 
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
-import com.velocitypowered.proxy.connection.MinecraftSessionHandler;
 import com.velocitypowered.proxy.connection.client.HandshakeSessionHandler;
 import com.velocitypowered.proxy.network.Connections;
 import com.velocitypowered.proxy.network.ServerChannelInitializer;
 import io.netty.channel.Channel;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import net.elytrium.fastmotd.FastMOTD;
 
 public class ServerChannelInitializerHook extends ServerChannelInitializer {
@@ -59,10 +57,6 @@ public class ServerChannelInitializerHook extends ServerChannelInitializer {
     }
 
     MinecraftConnection connection = (MinecraftConnection) ch.pipeline().get(Connections.HANDLER);
-    MinecraftSessionHandler handshakeSessionHandlerHook = (MinecraftSessionHandler) Proxy.newProxyInstance(
-        ServerChannelInitializer.class.getClassLoader(),
-        new Class[] { MinecraftSessionHandler.class },
-        new HandshakeSessionHandlerHook(this.plugin, connection, ch, (HandshakeSessionHandler) connection.getSessionHandler()));
-    connection.setSessionHandler(handshakeSessionHandlerHook);
+    connection.setSessionHandler(new HandshakeSessionHandlerHook(this.plugin, connection, ch, (HandshakeSessionHandler) connection.getSessionHandler()));
   }
 }

@@ -21,21 +21,21 @@ import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
 import com.velocitypowered.proxy.connection.client.HandshakeSessionHandler;
 import com.velocitypowered.proxy.network.Connections;
+import com.velocitypowered.proxy.protocol.MinecraftPacket;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
 import com.velocitypowered.proxy.protocol.packet.Handshake;
+import com.velocitypowered.proxy.protocol.packet.LegacyHandshake;
+import com.velocitypowered.proxy.protocol.packet.LegacyPing;
 import com.velocitypowered.proxy.protocol.packet.StatusPing;
 import com.velocitypowered.proxy.protocol.packet.StatusRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
 
-public class HandshakeSessionHandlerHook implements InvocationHandler {
+public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
   private final FastMOTD plugin;
   private final MinecraftConnection connection;
@@ -44,6 +44,7 @@ public class HandshakeSessionHandlerHook implements InvocationHandler {
   private ProtocolVersion protocolVersion;
 
   public HandshakeSessionHandlerHook(FastMOTD plugin, MinecraftConnection connection, Channel channel, HandshakeSessionHandler original) {
+    super(connection, plugin.getServer());
     this.plugin = plugin;
     this.connection = connection;
     this.channel = channel;
@@ -51,35 +52,51 @@ public class HandshakeSessionHandlerHook implements InvocationHandler {
   }
 
   @Override
-  public Object invoke(Object handler, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
-    if (method.getParameterCount() == 1) {
-      if (args[0] instanceof Handshake) {
-        Handshake handshake = (Handshake) args[0];
+  public boolean handle(LegacyPing packet) {
+    this.connection.close();
+    return true;
+  }
 
-        if (handshake.getNextStatus() == StateRegistry.STATUS_ID) {
-          this.protocolVersion = handshake.getProtocolVersion();
-          this.channel.pipeline().remove(Connections.FRAME_ENCODER);
-          this.channel.pipeline().get(MinecraftDecoder.class).setState(StateRegistry.STATUS);
+  @Override
+  public boolean handle(LegacyHandshake packet) {
+    this.connection.close();
+    return true;
+  }
 
-          if (Settings.IMP.MAIN.LOG_PINGS) {
-            this.plugin.getLogger().info("{} is pinging the server with version {}", this.connection.getRemoteAddress(), this.protocolVersion);
-          }
-          return true;
-        }
-      } else if (args[0] instanceof StatusPing) {
-        ByteBuf buf = Unpooled.directBuffer(11);
-        buf.writeByte(9);
-        buf.writeByte(1);
-        ((StatusPing) args[0]).encode(buf, null, null);
-        this.channel.writeAndFlush(buf);
-        this.connection.close();
-        return true;
-      } else if (args[0] instanceof StatusRequest) {
-        this.channel.writeAndFlush(this.plugin.getNext(this.protocolVersion));
-        return true;
+  @Override
+  public boolean handle(Handshake handshake) {
+    if (handshake.getNextStatus() == StateRegistry.STATUS_ID) {
+      this.protocolVersion = handshake.getProtocolVersion();
+      this.channel.pipeline().remove(Connections.FRAME_ENCODER);
+      this.channel.pipeline().get(MinecraftDecoder.class).setState(StateRegistry.STATUS);
+
+      if (Settings.IMP.MAIN.LOG_PINGS) {
+        this.plugin.getLogger().info("{} is pinging the server with version {}", this.connection.getRemoteAddress(), this.protocolVersion);
       }
+      return true;
     }
 
-    return method.invoke(this.original, args);
+    return this.original.handle(handshake);
+  }
+
+  @Override
+  public void handleGeneric(MinecraftPacket packet) {
+    if (packet instanceof StatusPing) {
+      ByteBuf buf = Unpooled.directBuffer(11);
+      buf.writeByte(9);
+      buf.writeByte(1);
+      packet.encode(buf, null, null);
+      this.channel.writeAndFlush(buf);
+      this.connection.close();
+    } else if (packet instanceof StatusRequest) {
+      this.channel.writeAndFlush(this.plugin.getNext(this.protocolVersion));
+    } else {
+      this.original.handleGeneric(packet);
+    }
+  }
+
+  @Override
+  public void handleUnknown(ByteBuf buf) {
+    this.original.handleUnknown(buf);
   }
 }
