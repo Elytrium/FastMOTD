@@ -23,7 +23,7 @@ jobs:
         uses: actions/upload-artifact@v3.0.0
         with:
           name: FastMOTD Built On ${{ matrix.java }} JDK
-          path: "build/libs/fastmotd*.jar"
+          path: "build/libs/FastMOTD*.jar"
       - uses: dev-drprasad/delete-tag-and-release@v0.2.0
         with:
           delete_release: true
@@ -33,7 +33,7 @@ jobs:
       - name: Release the build
         uses: ncipollo/release-action@v1.10.0
         with:
-          artifacts: "build/libs/fastmotd*.jar"
+          artifacts: "build/libs/FastMOTD*.jar"
           body: ${{ join(github.event.commits.*.message, '\n') }}
           prerelease: true
           name: JDK ${{ matrix.java }} Dev-build
