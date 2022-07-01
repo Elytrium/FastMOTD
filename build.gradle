@@ -1,0 +1,97 @@
+//file:noinspection GroovyAssignabilityCheck
+
+plugins {
+    id("java")
+    id("checkstyle")
+    id("com.github.spotbugs").version("5.0.7")
+    id("org.cadixdev.licenser").version("0.6.1")
+    id("com.github.johnrengelman.shadow").version("7.1.2")
+}
+
+setGroup("net.elytrium")
+setVersion("1.0.0")
+
+java {
+    setSourceCompatibility(JavaVersion.VERSION_11)
+    setTargetCompatibility(JavaVersion.VERSION_11)
+}
+
+compileJava {
+    getOptions().setEncoding("UTF-8")
+}
+
+repositories {
+    mavenCentral()
+
+    maven {
+        setName("elytrium-repo")
+        setUrl("https://maven.elytrium.net/repo/")
+    }
+    maven {
+        setName("papermc-repo")
+        setUrl("https://papermc.io/repo/repository/maven-public/")
+    }
+}
+
+dependencies {
+    implementation("net.elytrium:elytrium-java-commons:1.0.5")
+    implementation("net.elytrium:fastprepare:1.0.0")
+    compileOnly("com.velocitypowered:velocity-api:3.1.2-SNAPSHOT")
+    annotationProcessor("com.velocitypowered:velocity-api:3.1.2-SNAPSHOT")
+    compileOnly("com.velocitypowered:velocity-proxy:3.1.2-SNAPSHOT")
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.7.0")
+    // Needs for some velocity methods.
+    compileOnly("io.netty:netty-codec:4.1.77.Final")
+    compileOnly("io.netty:netty-handler:4.1.77.Final")
+    compileOnly("it.unimi.dsi:fastutil-core:8.5.8")
+
+    implementation("org.bstats:bstats-velocity:3.0.0")
+}
+
+shadowJar {
+    getArchiveClassifier().set("")
+
+    relocate("org.bstats", "net.elytrium.fastmotd.thirdparty.org.bstats")
+}
+
+license {
+    setHeader(file("HEADER.txt"))
+}
+
+checkstyle {
+    setToolVersion("10.1")
+    setConfigFile(file("${this.getRootDir()}/config/checkstyle/checkstyle.xml"))
+    setConfigProperties("configDirectory": "${this.getRootDir()}/config/checkstyle")
+
+    // The build should immediately fail if we have errors.
+    setMaxErrors(0)
+    setMaxWarnings(0)
+}
+
+spotbugsMain {
+    setExcludeFilter(file("${this.getRootDir()}/config/spotbugs/suppressions.xml"))
+
+    reports {
+        html {
+            getRequired().set(true)
+            getOutputLocation().set(file("${this.getBuildDir()}/reports/spotbugs/main/spotbugs.html"))
+            setStylesheet("fancy-hist.xsl")
+        }
+    }
+}
+
+artifacts {
+    archives(shadowJar)
+}
+
+sourceSets.main.getJava().srcDir(getTasks().register("generateTemplates", Copy) { task ->
+    task.getInputs().properties("version": getVersion())
+
+    task.from(file("src/main/templates"))
+            .into(getLayout().getBuildDirectory().dir("generated/sources/templates"))
+            .expand("version": getVersion())
+}.map {
+    it.getOutputs()
+})
+
+assemble.dependsOn(shadowJar)
