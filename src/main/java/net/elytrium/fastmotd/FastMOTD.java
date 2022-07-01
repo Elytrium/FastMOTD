@@ -38,6 +38,7 @@ import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.java.commons.mc.serialization.Serializers;
+import net.elytrium.java.commons.updates.UpdatesChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 import org.bstats.velocity.Metrics;
@@ -103,6 +104,13 @@ public class FastMOTD {
 
   public void reload() {
     Settings.IMP.reload(this.configFile);
+
+    if (!UpdatesChecker.checkVersionByURL("https://raw.githubusercontent.com/Elytrium/FastMOTD/master/VERSION", Settings.IMP.VERSION)) {
+      this.logger.error("****************************************");
+      this.logger.warn("The new FastMOTD update was found, please update.");
+      this.logger.error("https://github.com/Elytrium/FastMOTD/releases/");
+      this.logger.error("****************************************");
+    }
     this.metricsFactory.make(this, 15640);
 
     if (this.motdGenerator != null) {
