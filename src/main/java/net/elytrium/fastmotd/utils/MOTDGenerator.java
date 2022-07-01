@@ -46,7 +46,7 @@ public class MOTDGenerator {
 
   private final FastMOTD plugin;
   private final ComponentSerializer<Component, Component, String> serializer;
-  private final int holdersAmount = Settings.IMP.MAIN.DESCRIPTIONS.size() * Settings.IMP.MAIN.FAVICONS.size();
+  private final int holdersAmount = Settings.IMP.MAIN.DESCRIPTIONS.size() * this.notZero(Settings.IMP.MAIN.FAVICONS.size());
   private final MOTDHolder[] holders = new MOTDHolder[this.holdersAmount];
 
   public MOTDGenerator(FastMOTD plugin, ComponentSerializer<Component, Component, String> serializer) {
@@ -55,20 +55,30 @@ public class MOTDGenerator {
   }
 
   public void generate() {
-    List<String> descriptions = Settings.IMP.MAIN.DESCRIPTIONS;
-    for (int i = 0, descriptionsSize = descriptions.size(); i < descriptionsSize; i++) {
-      String description = descriptions.get(i);
-      List<String> favicons = Settings.IMP.MAIN.FAVICONS;
-      for (int j = 0, faviconsSize = favicons.size(); j < faviconsSize; j++) {
-        String faviconLocation = favicons.get(j);
-        try {
-          String base64Favicon = this.getFavicon(Paths.get(faviconLocation));
-          this.holders[j * descriptionsSize + i] = new MOTDHolder(this.serializer, description, base64Favicon);
-        } catch (IOException e) {
-          this.plugin.getLogger().error("Failed to load favicon " + faviconLocation);
-          e.printStackTrace();
-        }
+    List<String> favicons = Settings.IMP.MAIN.FAVICONS;
+    int faviconsSize = favicons.size();
+
+    if (faviconsSize == 0) {
+      this.generate(0, null);
+    }
+
+    for (int i = 0; i < faviconsSize; i++) {
+      String faviconLocation = favicons.get(i);
+      try {
+        String base64Favicon = this.getFavicon(Paths.get(faviconLocation));
+        this.generate(i, base64Favicon);
+      } catch (IOException e) {
+        this.plugin.getLogger().warn("Failed to load favicon {}. Ensure that the file exists or modify config.yml", faviconLocation);
+        this.generate(i, null);
       }
+    }
+  }
+
+  private void generate(int i, String favicon) {
+    List<String> descriptions = Settings.IMP.MAIN.DESCRIPTIONS;
+    for (int j = 0, descriptionsSize = descriptions.size(); j < descriptionsSize; j++) {
+      String description = descriptions.get(j);
+      this.holders[i * descriptionsSize + j] = new MOTDHolder(this.serializer, description, favicon);
     }
   }
 
@@ -132,6 +142,14 @@ public class MOTDGenerator {
   public void dispose() {
     for (MOTDHolder holder : this.holders) {
       holder.dispose();
+    }
+  }
+
+  private int notZero(int input) {
+    if (input == 0) {
+      return 1;
+    } else {
+      return input;
     }
   }
 

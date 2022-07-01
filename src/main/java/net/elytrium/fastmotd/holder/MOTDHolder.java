@@ -62,9 +62,15 @@ public class MOTDHolder {
         .append(description)
         .append("\"},\"version\":{\"name\":\"")
         .append(name)
-        .append("\",\"protocol\":         },\"favicon\":\"")
-        .append(favicon)
-        .append("\"}");
+        .append("\",\"protocol\":         }");
+
+    if (favicon != null && !favicon.isEmpty()) {
+      motd.append(",\"favicon\":\"")
+          .append(favicon)
+          .append("\"");
+    }
+
+    motd.append("}");
 
     byte[] bytes = motd.toString().getBytes(StandardCharsets.UTF_8);
     int varIntLength = ProtocolUtils.varIntBytes(bytes.length);
