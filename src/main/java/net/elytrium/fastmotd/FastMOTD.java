@@ -26,17 +26,28 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.proxy.VelocityServer;
+import com.velocitypowered.proxy.connection.MinecraftConnection;
 import com.velocitypowered.proxy.network.ConnectionManager;
 import com.velocitypowered.proxy.network.ServerChannelInitializer;
 import com.velocitypowered.proxy.network.ServerChannelInitializerHolder;
+import com.velocitypowered.proxy.protocol.StateRegistry;
+import com.velocitypowered.proxy.protocol.packet.Disconnect;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
 import java.io.File;
 import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import net.elytrium.fastmotd.command.ReloadCommand;
+import net.elytrium.fastmotd.dummy.DummyPlayer;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
+import net.elytrium.fastprepare.PreparedPacket;
+import net.elytrium.fastprepare.PreparedPacketFactory;
 import net.elytrium.java.commons.mc.serialization.Serializers;
 import net.elytrium.java.commons.updates.UpdatesChecker;
 import net.kyori.adventure.text.Component;
@@ -64,8 +75,12 @@ public class FastMOTD {
   private final VelocityServer server;
   private final Metrics.Factory metricsFactory;
   private final File configFile;
+  private PreparedPacketFactory preparedPacketFactory;
   private MOTDGenerator motdGenerator;
+  private MOTDGenerator maintenanceMOTDGenerator;
   private ScheduledTask updater;
+  private PreparedPacket kickReason;
+  private Set<InetAddress> kickWhitelist;
 
   static {
     try {
@@ -99,6 +114,9 @@ public class FastMOTD {
       e.printStackTrace();
     }
 
+    this.preparedPacketFactory =
+        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1);
+
     this.reload();
   }
 
@@ -113,8 +131,15 @@ public class FastMOTD {
     }
     this.metricsFactory.make(this, 15640);
 
+    ComponentSerializer<Component, Component, String> serializer = Serializers.valueOf(Settings.IMP.SERIALIZER).getSerializer();
+    if (serializer == null) {
+      this.logger.error("Incorrect serializer set: {}", Settings.IMP.SERIALIZER);
+      return;
+    }
+
     if (this.motdGenerator != null) {
       this.motdGenerator.dispose();
+      this.maintenanceMOTDGenerator.dispose();
     }
 
     this.server.getCommandManager().unregister("fastmotdreload");
@@ -124,18 +149,87 @@ public class FastMOTD {
       this.updater.cancel();
     }
 
-    ComponentSerializer<Component, Component, String> serializer = Serializers.valueOf(Settings.IMP.SERIALIZER).getSerializer();
-    this.motdGenerator = new MOTDGenerator(this, serializer);
+    Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE);
+    this.kickReason = this.preparedPacketFactory
+        .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
+        .prepare(version -> Disconnect.create(kickReasonComponent, version))
+        .build();
+
+    this.kickWhitelist = Settings.IMP.MAINTENANCE.KICK_WHITELIST.stream().map((String host) -> {
+      try {
+        return InetAddress.getByName(host);
+      } catch (UnknownHostException e) {
+        throw new RuntimeException(e);
+      }
+    }).collect(Collectors.toSet());
+
+    this.motdGenerator =
+        new MOTDGenerator(this, serializer, Settings.IMP.MAIN.VERSION_NAME,
+            Settings.IMP.MAIN.DESCRIPTIONS, Settings.IMP.MAIN.FAVICONS, Settings.IMP.MAIN.INFORMATION);
     this.motdGenerator.generate();
+    this.maintenanceMOTDGenerator =
+        new MOTDGenerator(this, serializer, Settings.IMP.MAINTENANCE.VERSION_NAME,
+            Settings.IMP.MAINTENANCE.DESCRIPTIONS, Settings.IMP.MAINTENANCE.FAVICONS, Settings.IMP.MAINTENANCE.INFORMATION);
+    this.maintenanceMOTDGenerator.generate();
 
     this.updater = this.server.getScheduler()
-        .buildTask(this, this.motdGenerator::update)
+        .buildTask(this, this::updateMOTD)
         .repeat(Settings.IMP.MAIN.UPDATE_RATE, TimeUnit.MILLISECONDS)
         .schedule();
   }
 
+  private void updateMOTD() {
+    int online = this.getOnline();
+    int max = this.getMax(online);
+    this.motdGenerator.update(max, online);
+
+    if (Settings.IMP.MAINTENANCE.OVERRIDE_MAX_ONLINE != -1) {
+      max = Settings.IMP.MAINTENANCE.OVERRIDE_MAX_ONLINE;
+    }
+
+    if (Settings.IMP.MAINTENANCE.OVERRIDE_ONLINE != -1) {
+      online = Settings.IMP.MAINTENANCE.OVERRIDE_ONLINE;
+    }
+
+    this.maintenanceMOTDGenerator.update(max, online);
+  }
+
+  private int getOnline() {
+    int online = this.server.getPlayerCount() + Settings.IMP.MAIN.FAKE_ONLINE_ADD_SINGLE;
+    return online * (Settings.IMP.MAIN.FAKE_ONLINE_ADD_PERCENT + 100) / 100;
+  }
+
+  private int getMax(int online) {
+    int max;
+    MaxCountType type = MaxCountType.valueOf(Settings.IMP.MAIN.MAX_COUNT_TYPE);
+    switch (type) {
+      case ADD_SOME:
+        max = online + Settings.IMP.MAIN.MAX_COUNT;
+        break;
+      case VARIABLE:
+        max = Settings.IMP.MAIN.MAX_COUNT;
+        break;
+      default:
+        throw new IllegalStateException("Unexpected value: " + type);
+    }
+
+    return max;
+  }
+
   public ByteBuf getNext(ProtocolVersion version) {
-    return this.motdGenerator.getNext(version);
+    if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
+      return this.maintenanceMOTDGenerator.getNext(version, !Settings.IMP.MAINTENANCE.SHOW_VERSION);
+    } else {
+      return this.motdGenerator.getNext(version, true);
+    }
+  }
+
+  public void inject(MinecraftConnection connection, ChannelPipeline pipeline) {
+    this.preparedPacketFactory.inject(DummyPlayer.INSTANCE, connection, pipeline);
+  }
+
+  public boolean checkKickWhitelist(InetAddress inetAddress) {
+    return this.kickWhitelist.contains(inetAddress);
   }
 
   public VelocityServer getServer() {
@@ -144,5 +238,15 @@ public class FastMOTD {
 
   public Logger getLogger() {
     return this.logger;
+  }
+
+  public PreparedPacket getKickReason() {
+    return this.kickReason;
+  }
+
+  private enum MaxCountType {
+
+    VARIABLE,
+    ADD_SOME
   }
 }

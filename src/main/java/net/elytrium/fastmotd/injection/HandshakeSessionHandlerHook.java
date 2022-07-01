@@ -32,6 +32,7 @@ import com.velocitypowered.proxy.protocol.packet.StatusRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import java.net.InetSocketAddress;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
 
@@ -74,6 +75,13 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
         this.plugin.getLogger().info("{} is pinging the server with version {}", this.connection.getRemoteAddress(), this.protocolVersion);
       }
       return true;
+    } else if (handshake.getNextStatus() == StateRegistry.LOGIN_ID
+        && Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED && Settings.IMP.MAINTENANCE.SHOULD_KICK_ON_JOIN
+        && !this.plugin.checkKickWhitelist(((InetSocketAddress) this.connection.getRemoteAddress()).getAddress())) {
+      this.connection.setProtocolVersion(handshake.getProtocolVersion());
+      this.channel.pipeline().remove(Connections.FRAME_ENCODER);
+      this.plugin.inject(this.connection, this.channel.pipeline());
+      this.connection.closeWith(this.plugin.getKickReason());
     }
 
     return this.original.handle(handshake);
@@ -82,6 +90,11 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
   @Override
   public void handleGeneric(MinecraftPacket packet) {
     if (packet instanceof StatusPing) {
+      if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
+        this.connection.close();
+        return;
+      }
+
       ByteBuf buf = Unpooled.directBuffer(11);
       buf.writeByte(9);
       buf.writeByte(1);

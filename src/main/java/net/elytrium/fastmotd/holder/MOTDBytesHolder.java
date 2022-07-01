@@ -24,7 +24,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import net.elytrium.fastmotd.Settings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
@@ -39,12 +38,11 @@ public class MOTDBytesHolder {
   private final int protocolDigit;
 
   public MOTDBytesHolder(ComponentSerializer<Component, Component, String> inputSerializer, GsonComponentSerializer outputSerializer,
-                         String name, Component description, String favicon) {
+                         String name, Component description, String favicon, List<String> information) {
     this.inputSerializer = inputSerializer;
 
     StringBuilder motd = new StringBuilder("{\"players\":{\"max\":    0,\"online\":    1,\"sample\":[");
 
-    List<String> information = Settings.IMP.MAIN.INFORMATION;
     int lastIdx = information.size() - 1;
     if (lastIdx != -1) {
       if (lastIdx > 9) {
@@ -65,7 +63,7 @@ public class MOTDBytesHolder {
         .append(outputSerializer.serialize(description))
         .append(",\"version\":{\"name\":\"")
         .append(name)
-        .append("\",\"protocol\":         }");
+        .append("\",\"protocol\":        1}");
 
     if (favicon != null && !favicon.isEmpty()) {
       motd.append(",\"favicon\":\"")
@@ -83,7 +81,7 @@ public class MOTDBytesHolder {
 
     this.maxOnlineDigit = Bytes.indexOf(bytes, "    0".getBytes(StandardCharsets.UTF_8)) + 1 + varIntLength;
     this.onlineDigit = Bytes.indexOf(bytes, "    1".getBytes(StandardCharsets.UTF_8)) + 1 + varIntLength;
-    this.protocolDigit = Bytes.indexOf(bytes, "protocol\":         }".getBytes(StandardCharsets.UTF_8)) + 19 + varIntLength;
+    this.protocolDigit = Bytes.indexOf(bytes, "protocol\":        1}".getBytes(StandardCharsets.UTF_8)) + 19 + varIntLength;
 
     this.byteBuf = Unpooled.directBuffer(length + lengthOfLength);
     ProtocolUtils.writeVarInt(this.byteBuf, length);
@@ -105,10 +103,14 @@ public class MOTDBytesHolder {
     this.byteBuf.setByte(digit + 4, (to % 10) + '0');
   }
 
-  public ByteBuf getByteBuf(ProtocolVersion version) {
+  public ByteBuf getByteBuf(ProtocolVersion version, boolean replaceProtocol) {
     ByteBuf buf = this.byteBuf.copy();
-    int protocol = version.getProtocol();
-    this.replaceStrInt(buf, this.protocolDigit, protocol);
+
+    if (replaceProtocol) {
+      int protocol = version.getProtocol();
+      this.replaceStrInt(buf, this.protocolDigit, protocol);
+    }
+
     return buf;
   }
 

@@ -20,7 +20,7 @@ package net.elytrium.fastmotd.holder;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import io.netty.buffer.ByteBuf;
-import net.elytrium.fastmotd.Settings;
+import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 
@@ -29,14 +29,15 @@ public class MOTDHolder {
   private final MOTDBytesHolder legacyHolder;
   private final MOTDBytesHolder modernHolder;
 
-  public MOTDHolder(ComponentSerializer<Component, Component, String> serializer, String descriptionSerialized, String favicon) {
-    String name = Settings.IMP.MAIN.VERSION_NAME.replace("\"", "\\\"");
+  public MOTDHolder(ComponentSerializer<Component, Component, String> serializer, String versionName,
+                    String descriptionSerialized, String favicon, List<String> information) {
+    String name = versionName.replace("\"", "\\\"");
     Component description = serializer.deserialize(descriptionSerialized.replace("{NL}", "\n"));
 
     this.legacyHolder =
-        new MOTDBytesHolder(serializer, ProtocolUtils.getJsonChatSerializer(ProtocolVersion.MINECRAFT_1_15_2), name, description, favicon);
+        new MOTDBytesHolder(serializer, ProtocolUtils.getJsonChatSerializer(ProtocolVersion.MINECRAFT_1_15_2), name, description, favicon, information);
     this.modernHolder =
-        new MOTDBytesHolder(serializer, ProtocolUtils.getJsonChatSerializer(ProtocolVersion.MINECRAFT_1_16), name, description, favicon);
+        new MOTDBytesHolder(serializer, ProtocolUtils.getJsonChatSerializer(ProtocolVersion.MINECRAFT_1_16), name, description, favicon, information);
   }
 
   public void replaceOnline(int max, int online) {
@@ -44,11 +45,11 @@ public class MOTDHolder {
     this.modernHolder.replaceOnline(max, online);
   }
 
-  public ByteBuf getByteBuf(ProtocolVersion version) {
+  public ByteBuf getByteBuf(ProtocolVersion version, boolean replaceProtocol) {
     if (version.compareTo(ProtocolVersion.MINECRAFT_1_16) >= 0) {
-      return this.modernHolder.getByteBuf(version);
+      return this.modernHolder.getByteBuf(version, replaceProtocol);
     } else {
-      return this.legacyHolder.getByteBuf(version);
+      return this.legacyHolder.getByteBuf(version, replaceProtocol);
     }
   }
 

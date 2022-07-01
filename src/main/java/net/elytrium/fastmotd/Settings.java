@@ -63,4 +63,23 @@ public class Settings extends YamlConfig {
     public double PNG_QUALITY = 0.0;
     public boolean LOG_PINGS = false;
   }
+
+  @Create
+  public MAINTENANCE MAINTENANCE;
+
+  public static class MAINTENANCE {
+    public boolean MAINTENANCE_ENABLED = false;
+    public boolean SHOW_VERSION = true;
+    public boolean SHOULD_KICK_ON_JOIN = true;
+    public List<String> KICK_WHITELIST = List.of("127.0.0.1");
+    public String KICK_MESSAGE = "<red>Try to join the server later</red>";
+    public String VERSION_NAME = "MAINTENANCE MODE ENABLED!!";
+    public List<String> DESCRIPTIONS = List.of("<bold><red>FastMOTD</red></bold>{NL} -> Really fast. (in maintenance mode too)");
+    public List<String> FAVICONS = List.of("server-icon.png");
+    public List<String> INFORMATION = List.of("Contact support: https://elytrium.net/discord");
+    @Comment("-1 = disabled")
+    public int OVERRIDE_ONLINE = -1;
+    @Comment("-1 = disabled")
+    public int OVERRIDE_MAX_ONLINE = -1;
+  }
 }

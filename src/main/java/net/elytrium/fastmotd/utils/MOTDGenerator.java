@@ -46,24 +46,32 @@ public class MOTDGenerator {
 
   private final FastMOTD plugin;
   private final ComponentSerializer<Component, Component, String> serializer;
+  private final String versionName;
+  private final List<String> descriptions;
+  private final List<String> favicons;
+  private final List<String> information;
   private final int holdersAmount = Settings.IMP.MAIN.DESCRIPTIONS.size() * this.notZero(Settings.IMP.MAIN.FAVICONS.size());
   private final MOTDHolder[] holders = new MOTDHolder[this.holdersAmount];
 
-  public MOTDGenerator(FastMOTD plugin, ComponentSerializer<Component, Component, String> serializer) {
+  public MOTDGenerator(FastMOTD plugin, ComponentSerializer<Component, Component, String> serializer,
+                       String versionName, List<String> descriptions, List<String> favicons, List<String> information) {
     this.plugin = plugin;
     this.serializer = serializer;
+    this.versionName = versionName;
+    this.descriptions = descriptions;
+    this.favicons = favicons;
+    this.information = information;
   }
 
   public void generate() {
-    List<String> favicons = Settings.IMP.MAIN.FAVICONS;
-    int faviconsSize = favicons.size();
+    int faviconsSize = this.favicons.size();
 
     if (faviconsSize == 0) {
       this.generate(0, null);
     }
 
     for (int i = 0; i < faviconsSize; i++) {
-      String faviconLocation = favicons.get(i);
+      String faviconLocation = this.favicons.get(i);
       try {
         String base64Favicon = this.getFavicon(Paths.get(faviconLocation));
         this.generate(i, base64Favicon);
@@ -75,10 +83,9 @@ public class MOTDGenerator {
   }
 
   private void generate(int i, String favicon) {
-    List<String> descriptions = Settings.IMP.MAIN.DESCRIPTIONS;
-    for (int j = 0, descriptionsSize = descriptions.size(); j < descriptionsSize; j++) {
-      String description = descriptions.get(j);
-      this.holders[i * descriptionsSize + j] = new MOTDHolder(this.serializer, description, favicon);
+    for (int j = 0, descriptionsSize = this.descriptions.size(); j < descriptionsSize; j++) {
+      String description = this.descriptions.get(j);
+      this.holders[i * descriptionsSize + j] = new MOTDHolder(this.serializer, this.versionName, description, favicon, this.information);
     }
   }
 
@@ -113,30 +120,14 @@ public class MOTDGenerator {
     return favicon;
   }
 
-  public void update() {
-    int online = this.plugin.getServer().getPlayerCount() + Settings.IMP.MAIN.FAKE_ONLINE_ADD_SINGLE;
-    online = online * (Settings.IMP.MAIN.FAKE_ONLINE_ADD_PERCENT + 100) / 100;
-
-    int max;
-    MaxCountType type = MaxCountType.valueOf(Settings.IMP.MAIN.MAX_COUNT_TYPE);
-    switch (type) {
-      case ADD_SOME:
-        max = online + Settings.IMP.MAIN.MAX_COUNT;
-        break;
-      case VARIABLE:
-        max = Settings.IMP.MAIN.MAX_COUNT;
-        break;
-      default:
-        throw new IllegalStateException("Unexpected value: " + type);
-    }
-
+  public void update(int max, int online) {
     for (MOTDHolder holder : this.holders) {
       holder.replaceOnline(max, online);
     }
   }
 
-  public ByteBuf getNext(ProtocolVersion version) {
-    return this.holders[ThreadLocalRandom.current().nextInt(this.holdersAmount)].getByteBuf(version);
+  public ByteBuf getNext(ProtocolVersion version, boolean replaceProtocol) {
+    return this.holders[ThreadLocalRandom.current().nextInt(this.holdersAmount)].getByteBuf(version, replaceProtocol);
   }
 
   public void dispose() {
@@ -151,11 +142,5 @@ public class MOTDGenerator {
     } else {
       return input;
     }
-  }
-
-  private enum MaxCountType {
-
-    VARIABLE,
-    ADD_SOME
   }
 }
