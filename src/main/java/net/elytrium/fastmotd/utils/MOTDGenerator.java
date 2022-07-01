@@ -18,12 +18,24 @@
 package net.elytrium.fastmotd.utils;
 
 import com.velocitypowered.api.network.ProtocolVersion;
-import com.velocitypowered.api.util.Favicon;
 import io.netty.buffer.ByteBuf;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageTypeSpecifier;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageInputStream;
+import javax.imageio.stream.ImageOutputStream;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
 import net.elytrium.fastmotd.holder.MOTDHolder;
@@ -50,7 +62,7 @@ public class MOTDGenerator {
       for (int j = 0, faviconsSize = favicons.size(); j < faviconsSize; j++) {
         String faviconLocation = favicons.get(j);
         try {
-          String base64Favicon = Favicon.create(Path.of(faviconLocation)).getBase64Url();
+          String base64Favicon = this.getFavicon(Paths.get(faviconLocation));
           this.holders[j * descriptionsSize + i] = new MOTDHolder(this.serializer, description, base64Favicon);
         } catch (IOException e) {
           this.plugin.getLogger().error("Failed to load favicon " + faviconLocation);
@@ -58,6 +70,37 @@ public class MOTDGenerator {
         }
       }
     }
+  }
+
+  private String getFavicon(Path faviconLocation) throws IOException {
+    BufferedImage image;
+    try (ImageInputStream in = ImageIO.createImageInputStream(Files.newInputStream(faviconLocation))) {
+      ImageReader reader = ImageIO.getImageReadersByFormatName("png").next();
+      reader.setInput(in, true, false);
+      image = reader.read(0);
+      reader.dispose();
+    }
+
+    ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+    try (ImageOutputStream out = ImageIO.createImageOutputStream(outBytes)) {
+      ImageTypeSpecifier type = ImageTypeSpecifier.createFromRenderedImage(image);
+      ImageWriter writer = ImageIO.getImageWriters(type, "png").next();
+
+      ImageWriteParam param = writer.getDefaultWriteParam();
+      if (param.canWriteCompressed()) {
+        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        param.setCompressionQuality((float) Settings.IMP.MAIN.PNG_QUALITY);
+      }
+
+      writer.setOutput(out);
+      writer.write(null, new IIOImage(image, null, null), param);
+      writer.dispose();
+    }
+
+    String favicon = "data:image/png;base64," + Base64.getEncoder().encodeToString(outBytes.toByteArray());
+    outBytes.close();
+
+    return favicon;
   }
 
   public void update() {
