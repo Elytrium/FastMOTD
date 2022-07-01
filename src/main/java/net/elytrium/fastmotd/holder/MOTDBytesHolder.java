@@ -46,18 +46,22 @@ public class MOTDBytesHolder {
 
     List<String> information = Settings.IMP.MAIN.INFORMATION;
     int lastIdx = information.size() - 1;
-    if (lastIdx > 9) {
-      lastIdx = 9;
+    if (lastIdx != -1) {
+      if (lastIdx > 9) {
+        lastIdx = 9;
+      }
+
+      for (int i = 0; i < lastIdx; i++) {
+        String e = information.get(i);
+        motd.append("{\"id\":\"00000000-0000-0000-0000-00000000000").append(i).append("\",\"name\":\"").append(this.toLegacy(e)).append("\"},");
+      }
+
+      motd.append("{\"id\":\"00000000-0000-0000-0000-000000000009\",\"name\":\"")
+          .append(this.toLegacy(information.get(lastIdx)))
+          .append("\"}");
     }
 
-    for (int i = 0; i < lastIdx; i++) {
-      String e = information.get(i);
-      motd.append("{\"id\":\"00000000-0000-0000-0000-00000000000").append(i).append("\",\"name\":\"").append(this.toLegacy(e)).append("\"},");
-    }
-
-    motd.append("{\"id\":\"00000000-0000-0000-0000-000000000009\",\"name\":\"")
-        .append(this.toLegacy(information.get(lastIdx)))
-        .append("\"}]},\"description\":")
+    motd.append("]},\"description\":")
         .append(outputSerializer.serialize(description))
         .append(",\"version\":{\"name\":\"")
         .append(name)
