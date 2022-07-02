@@ -132,7 +132,9 @@ public class MOTDGenerator {
 
   public void dispose() {
     for (MOTDHolder holder : this.holders) {
-      holder.dispose();
+      if (holder != null) {
+        holder.dispose();
+      }
     }
   }
 
