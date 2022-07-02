@@ -149,6 +149,10 @@ public class FastMOTD {
       this.updater.cancel();
     }
 
+    if (this.kickReason != null) {
+      this.kickReason.release();
+    }
+
     Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE);
     this.kickReason = this.preparedPacketFactory
         .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
