@@ -163,7 +163,7 @@ public class FastMOTD {
       try {
         return InetAddress.getByName(host);
       } catch (UnknownHostException e) {
-        throw new RuntimeException(e);
+        throw new IllegalArgumentException(e);
       }
     }).collect(Collectors.toSet());
 
