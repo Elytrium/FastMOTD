@@ -50,8 +50,8 @@ public class MOTDGenerator {
   private final List<String> descriptions;
   private final List<String> favicons;
   private final List<String> information;
-  private final int holdersAmount = Settings.IMP.MAIN.DESCRIPTIONS.size() * this.notZero(Settings.IMP.MAIN.FAVICONS.size());
-  private final MOTDHolder[] holders = new MOTDHolder[this.holdersAmount];
+  private final int holdersAmount;
+  private final MOTDHolder[] holders;
 
   public MOTDGenerator(FastMOTD plugin, ComponentSerializer<Component, Component, String> serializer,
                        String versionName, List<String> descriptions, List<String> favicons, List<String> information) {
@@ -61,6 +61,8 @@ public class MOTDGenerator {
     this.descriptions = descriptions;
     this.favicons = favicons;
     this.information = information;
+    this.holdersAmount = this.descriptions.size() * this.notZero(this.favicons.size());
+    this.holders = new MOTDHolder[this.holdersAmount];
   }
 
   public void generate() {
