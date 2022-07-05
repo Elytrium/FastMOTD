@@ -18,6 +18,7 @@
 package net.elytrium.fastmotd;
 
 import java.util.List;
+import java.util.Map;
 import net.elytrium.java.commons.config.YamlConfig;
 
 public class Settings extends YamlConfig {
@@ -62,6 +63,19 @@ public class Settings extends YamlConfig {
     })
     public double PNG_QUALITY = 0.0;
     public boolean LOG_PINGS = false;
+
+    @Create
+    public VERSIONS VERSIONS;
+
+    @Comment({
+        "Separate MOTDs/favicons/information for different protocol versions",
+        "See https://wiki.vg/Protocol_version_numbers",
+    })
+    public static class VERSIONS {
+      public Map<String, List<String>> DESCRIPTIONS = Map.of("757-759", List.of("<bold><red>FastMOTD</red></bold>{NL} -> Supports separate MOTDs for different versions."));
+      public Map<String, List<String>> FAVICONS = Map.of("756-758", List.of("second-server-icon.png"));
+      public Map<String, List<String>> INFORMATION = Map.of("757-758", List.of("Your", "protocol", "version", "is 757 or 758"));
+    }
   }
 
   @Create
@@ -81,5 +95,18 @@ public class Settings extends YamlConfig {
     public int OVERRIDE_ONLINE = -1;
     @Comment("-1 = disabled")
     public int OVERRIDE_MAX_ONLINE = -1;
+
+    @Create
+    public VERSIONS VERSIONS;
+
+    @Comment({
+        "Separate MOTDs/favicons/information for different protocol versions",
+        "See https://wiki.vg/Protocol_version_numbers",
+    })
+    public static class VERSIONS {
+      public Map<String, List<String>> DESCRIPTIONS = Map.of("757-759", List.of("<bold><red>FastMOTD</red></bold>{NL} -> Really Fast."));
+      public Map<String, List<String>> FAVICONS = Map.of("758-758", List.of("second-server-icon.png"));
+      public Map<String, List<String>> INFORMATION = Map.of("756-759", List.of("Server is", "under", "maintenance"));
+    }
   }
 }

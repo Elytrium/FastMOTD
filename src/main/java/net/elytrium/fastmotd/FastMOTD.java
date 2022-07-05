@@ -39,9 +39,15 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.dummy.DummyPlayer;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
@@ -75,9 +81,11 @@ public class FastMOTD {
   private final VelocityServer server;
   private final Metrics.Factory metricsFactory;
   private final File configFile;
+  private final List<MOTDGenerator> motdGenerators = new ArrayList<>();
+  private final List<MOTDGenerator> maintenanceMOTDGenerators = new ArrayList<>();
+  private final Map<Short, Short> protocolPointers = new HashMap<>();
+  private final Map<Short, Short> maintenanceProtocolPointers = new HashMap<>();
   private PreparedPacketFactory preparedPacketFactory;
-  private MOTDGenerator motdGenerator;
-  private MOTDGenerator maintenanceMOTDGenerator;
   private ScheduledTask updater;
   private PreparedPacket kickReason;
   private Set<InetAddress> kickWhitelist;
@@ -137,10 +145,14 @@ public class FastMOTD {
       return;
     }
 
-    if (this.motdGenerator != null) {
-      this.motdGenerator.dispose();
-      this.maintenanceMOTDGenerator.dispose();
-    }
+    this.motdGenerators.forEach(MOTDGenerator::dispose);
+    this.maintenanceMOTDGenerators.forEach(MOTDGenerator::dispose);
+
+    this.protocolPointers.clear();
+    this.motdGenerators.clear();
+
+    this.maintenanceProtocolPointers.clear();
+    this.maintenanceMOTDGenerators.clear();
 
     this.server.getCommandManager().unregister("fastmotdreload");
     this.server.getCommandManager().register("fastmotdreload", new ReloadCommand(this));
@@ -167,14 +179,14 @@ public class FastMOTD {
       }
     }).collect(Collectors.toSet());
 
-    this.motdGenerator =
-        new MOTDGenerator(this, serializer, Settings.IMP.MAIN.VERSION_NAME,
-            Settings.IMP.MAIN.DESCRIPTIONS, Settings.IMP.MAIN.FAVICONS, Settings.IMP.MAIN.INFORMATION);
-    this.motdGenerator.generate();
-    this.maintenanceMOTDGenerator =
-        new MOTDGenerator(this, serializer, Settings.IMP.MAINTENANCE.VERSION_NAME,
-            Settings.IMP.MAINTENANCE.DESCRIPTIONS, Settings.IMP.MAINTENANCE.FAVICONS, Settings.IMP.MAINTENANCE.INFORMATION);
-    this.maintenanceMOTDGenerator.generate();
+    this.generateMOTDGenerators(serializer, Settings.IMP.MAIN.VERSION_NAME, Settings.IMP.MAIN.DESCRIPTIONS,
+            Settings.IMP.MAIN.FAVICONS, Settings.IMP.MAIN.INFORMATION, this.motdGenerators, this.protocolPointers,
+            Settings.IMP.MAIN.VERSIONS.DESCRIPTIONS, Settings.IMP.MAIN.VERSIONS.FAVICONS, Settings.IMP.MAIN.VERSIONS.INFORMATION);
+
+    this.generateMOTDGenerators(serializer, Settings.IMP.MAINTENANCE.VERSION_NAME, Settings.IMP.MAINTENANCE.DESCRIPTIONS,
+            Settings.IMP.MAINTENANCE.FAVICONS, Settings.IMP.MAINTENANCE.INFORMATION, this.maintenanceMOTDGenerators,
+            this.maintenanceProtocolPointers, Settings.IMP.MAINTENANCE.VERSIONS.DESCRIPTIONS,
+            Settings.IMP.MAINTENANCE.VERSIONS.FAVICONS, Settings.IMP.MAINTENANCE.VERSIONS.INFORMATION);
 
     this.updater = this.server.getScheduler()
         .buildTask(this, this::updateMOTD)
@@ -182,10 +194,87 @@ public class FastMOTD {
         .schedule();
   }
 
+  private void generateMOTDGenerators(
+          ComponentSerializer<Component, Component, String> serializer,
+          String versionName, List<String> defaultDescriptions, List<String> defaultFavicons,
+          List<String> defaultInformation, List<MOTDGenerator> dest, Map<Short, Short> destPointers,
+          Map<String, List<String>> descriptionVersions, Map<String, List<String>> faviconVersions,
+          Map<String, List<String>> informationVersions) {
+    MOTDGenerator defaultMotdGenerator =
+            new MOTDGenerator(this, serializer, versionName, defaultDescriptions, defaultFavicons, defaultInformation);
+    defaultMotdGenerator.generate();
+    dest.add(defaultMotdGenerator);
+
+    if (descriptionVersions == null) {
+      descriptionVersions = new HashMap<>();
+    }
+    if (faviconVersions == null) {
+      faviconVersions = new HashMap<>();
+    }
+    if (informationVersions == null) {
+      informationVersions = new HashMap<>();
+    }
+
+    Map<Integer, List<String>> protocolDescriptions = new HashMap<>();
+    Map<Integer, List<String>> protocolIcons = new HashMap<>();
+    Map<Integer, List<String>> protocolInformation = new HashMap<>();
+
+    this.sortByProtocolVersion(descriptionVersions, protocolDescriptions);
+    this.sortByProtocolVersion(faviconVersions, protocolIcons);
+    this.sortByProtocolVersion(informationVersions, protocolInformation);
+
+    Set<Integer> allProtocols = new HashSet<>();
+    allProtocols.addAll(protocolDescriptions.keySet());
+    allProtocols.addAll(protocolIcons.keySet());
+    allProtocols.addAll(protocolInformation.keySet());
+
+    Map<List<String>, Set<Integer>> protocolsByData = new HashMap<>();
+
+    allProtocols.forEach(protocol -> {
+      List<String> key = new ArrayList<>();
+      key.addAll(protocolDescriptions.getOrDefault(protocol, defaultDescriptions));
+      key.addAll(protocolIcons.getOrDefault(protocol, defaultFavicons));
+      key.addAll(protocolInformation.getOrDefault(protocol, defaultInformation));
+      protocolsByData.putIfAbsent(key, new HashSet<>());
+      protocolsByData.get(key).add(protocol);
+    });
+
+    protocolsByData.values().forEach(identical -> {
+      final short idx = (short) dest.size();
+      final int key = identical.iterator().next();
+      MOTDGenerator motdGenerator = new MOTDGenerator(this, serializer, versionName,
+              protocolDescriptions.getOrDefault(key, defaultDescriptions),
+              protocolIcons.getOrDefault(key, defaultFavicons),
+              protocolInformation.getOrDefault(key, defaultInformation));
+      motdGenerator.generate();
+      dest.add(motdGenerator);
+      identical.forEach(p -> destPointers.put(p.shortValue(), idx));
+    });
+  }
+
+  private void sortByProtocolVersion(Map<String, List<String>> src, Map<Integer, List<String>> dest) {
+    src.forEach((key, value) -> {
+      IntStream range;
+      if (key.contains("-")) {
+        String[] parts = key.split("-");
+        range = IntStream.rangeClosed(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+      } else {
+        range = IntStream.of(Integer.parseInt(key));
+      }
+      range.forEach(protocol -> {
+        dest.putIfAbsent(protocol, new ArrayList<>());
+        dest.get(protocol).addAll(value);
+      });
+    });
+  }
+
   private void updateMOTD() {
     int online = this.getOnline();
     int max = this.getMax(online);
-    this.motdGenerator.update(max, online);
+
+    for (MOTDGenerator generator : this.motdGenerators) {
+      generator.update(max, online);
+    }
 
     if (Settings.IMP.MAINTENANCE.OVERRIDE_MAX_ONLINE != -1) {
       max = Settings.IMP.MAINTENANCE.OVERRIDE_MAX_ONLINE;
@@ -195,7 +284,9 @@ public class FastMOTD {
       online = Settings.IMP.MAINTENANCE.OVERRIDE_ONLINE;
     }
 
-    this.maintenanceMOTDGenerator.update(max, online);
+    for (MOTDGenerator generator : this.maintenanceMOTDGenerators) {
+      generator.update(max, online);
+    }
   }
 
   private int getOnline() {
@@ -222,9 +313,12 @@ public class FastMOTD {
 
   public ByteBuf getNext(ProtocolVersion version) {
     if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
-      return this.maintenanceMOTDGenerator.getNext(version, !Settings.IMP.MAINTENANCE.SHOW_VERSION);
+      return this.maintenanceMOTDGenerators.get(
+              this.maintenanceProtocolPointers.getOrDefault((short) version.getProtocol(), (short) 0))
+              .getNext(version, !Settings.IMP.MAINTENANCE.SHOW_VERSION);
     } else {
-      return this.motdGenerator.getNext(version, true);
+      return this.motdGenerators.get(
+              this.protocolPointers.getOrDefault((short) version.getProtocol(), (short) 0)).getNext(version, true);
     }
   }
 
