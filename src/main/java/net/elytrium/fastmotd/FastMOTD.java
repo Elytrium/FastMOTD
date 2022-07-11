@@ -34,6 +34,12 @@ import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.packet.Disconnect;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -41,7 +47,6 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -83,8 +88,8 @@ public class FastMOTD {
   private final File configFile;
   private final List<MOTDGenerator> motdGenerators = new ArrayList<>();
   private final List<MOTDGenerator> maintenanceMOTDGenerators = new ArrayList<>();
-  private final Map<Short, Short> protocolPointers = new HashMap<>();
-  private final Map<Short, Short> maintenanceProtocolPointers = new HashMap<>();
+  private final Int2IntMap protocolPointers = new Int2IntOpenHashMap();
+  private final Int2IntMap maintenanceProtocolPointers = new Int2IntOpenHashMap();
   private PreparedPacketFactory preparedPacketFactory;
   private ScheduledTask updater;
   private PreparedPacket kickReason;
@@ -197,7 +202,7 @@ public class FastMOTD {
   private void generateMOTDGenerators(
           ComponentSerializer<Component, Component, String> serializer,
           String versionName, List<String> defaultDescriptions, List<String> defaultFavicons,
-          List<String> defaultInformation, List<MOTDGenerator> dest, Map<Short, Short> destPointers,
+          List<String> defaultInformation, List<MOTDGenerator> dest, Int2IntMap destPointers,
           Map<String, List<String>> descriptionVersions, Map<String, List<String>> faviconVersions,
           Map<String, List<String>> informationVersions) {
     MOTDGenerator defaultMotdGenerator =
@@ -215,44 +220,44 @@ public class FastMOTD {
       informationVersions = new HashMap<>();
     }
 
-    Map<Integer, List<String>> protocolDescriptions = new HashMap<>();
-    Map<Integer, List<String>> protocolIcons = new HashMap<>();
-    Map<Integer, List<String>> protocolInformation = new HashMap<>();
+    Int2ObjectMap<List<String>> protocolDescriptions = new Int2ObjectOpenHashMap<>();
+    Int2ObjectMap<List<String>> protocolIcons = new Int2ObjectOpenHashMap<>();
+    Int2ObjectMap<List<String>> protocolInformation = new Int2ObjectOpenHashMap<>();
 
     this.sortByProtocolVersion(descriptionVersions, protocolDescriptions);
     this.sortByProtocolVersion(faviconVersions, protocolIcons);
     this.sortByProtocolVersion(informationVersions, protocolInformation);
 
-    Set<Integer> allProtocols = new HashSet<>();
+    IntSet allProtocols = new IntOpenHashSet();
     allProtocols.addAll(protocolDescriptions.keySet());
     allProtocols.addAll(protocolIcons.keySet());
     allProtocols.addAll(protocolInformation.keySet());
 
-    Map<List<String>, Set<Integer>> protocolsByData = new HashMap<>();
+    Map<List<String>, IntSet> protocolsByData = new HashMap<>();
 
     allProtocols.forEach(protocol -> {
       List<String> key = new ArrayList<>();
       key.addAll(protocolDescriptions.getOrDefault(protocol, defaultDescriptions));
       key.addAll(protocolIcons.getOrDefault(protocol, defaultFavicons));
       key.addAll(protocolInformation.getOrDefault(protocol, defaultInformation));
-      protocolsByData.putIfAbsent(key, new HashSet<>());
+      protocolsByData.putIfAbsent(key, new IntOpenHashSet());
       protocolsByData.get(key).add(protocol);
     });
 
     protocolsByData.values().forEach(identical -> {
-      final short idx = (short) dest.size();
-      final int key = identical.iterator().next();
+      final int idx = dest.size();
+      final int key = identical.iterator().nextInt();
       MOTDGenerator motdGenerator = new MOTDGenerator(this, serializer, versionName,
               protocolDescriptions.getOrDefault(key, defaultDescriptions),
               protocolIcons.getOrDefault(key, defaultFavicons),
               protocolInformation.getOrDefault(key, defaultInformation));
       motdGenerator.generate();
       dest.add(motdGenerator);
-      identical.forEach(p -> destPointers.put(p.shortValue(), idx));
+      identical.forEach(p -> destPointers.put(p, idx));
     });
   }
 
-  private void sortByProtocolVersion(Map<String, List<String>> src, Map<Integer, List<String>> dest) {
+  private void sortByProtocolVersion(Map<String, List<String>> src, Int2ObjectMap<List<String>> dest) {
     src.forEach((key, value) -> {
       IntStream range;
       if (key.contains("-")) {
@@ -314,11 +319,11 @@ public class FastMOTD {
   public ByteBuf getNext(ProtocolVersion version) {
     if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
       return this.maintenanceMOTDGenerators.get(
-              this.maintenanceProtocolPointers.getOrDefault((short) version.getProtocol(), (short) 0))
+              this.maintenanceProtocolPointers.getOrDefault(version.getProtocol(), 0))
               .getNext(version, !Settings.IMP.MAINTENANCE.SHOW_VERSION);
     } else {
       return this.motdGenerators.get(
-              this.protocolPointers.getOrDefault((short) version.getProtocol(), (short) 0)).getNext(version, true);
+              this.protocolPointers.getOrDefault(version.getProtocol(), 0)).getNext(version, true);
     }
   }
 
