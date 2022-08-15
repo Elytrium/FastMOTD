@@ -38,6 +38,7 @@ public class Settings extends YamlConfig {
       "GSON_COLOR_DOWNSAMPLING - Same as GSON, but uses downsampling."
   })
   public String SERIALIZER = "MINIMESSAGE";
+  public String PREFIX = "FastMOTD <gold>>></gold>";
 
   @Create
   public MAIN MAIN;
@@ -113,6 +114,13 @@ public class Settings extends YamlConfig {
       public Map<String, List<String>> FAVICONS = Map.of("758-758", List.of("second-server-icon.png"));
       @Comment("null = disabled")
       public Map<String, List<String>> INFORMATION = Map.of("756-759", List.of("Server is", "under", "maintenance"));
+    }
+
+    @Create
+    public COMMAND COMMAND;
+
+    public static class COMMAND {
+      public String USAGE = "{PRFX} Usage: <gold>/maintenance <off|on|toggle></gold>";
     }
   }
 }
