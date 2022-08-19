@@ -18,6 +18,7 @@
 package net.elytrium.fastmotd;
 
 import com.google.inject.Inject;
+import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.network.ProtocolVersion;
@@ -49,10 +50,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import net.elytrium.fastmotd.command.MaintenanceCommand;
 import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.dummy.DummyPlayer;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
@@ -134,7 +137,7 @@ public class FastMOTD {
   }
 
   public void reload() {
-    Settings.IMP.reload(this.configFile);
+    Settings.IMP.reload(this.configFile, Settings.IMP.PREFIX);
 
     if (!UpdatesChecker.checkVersionByURL("https://raw.githubusercontent.com/Elytrium/FastMOTD/master/VERSION", Settings.IMP.VERSION)) {
       this.logger.error("****************************************");
@@ -159,8 +162,13 @@ public class FastMOTD {
     this.maintenanceProtocolPointers.clear();
     this.maintenanceMOTDGenerators.clear();
 
-    this.server.getCommandManager().unregister("fastmotdreload");
-    this.server.getCommandManager().register("fastmotdreload", new ReloadCommand(this));
+    CommandManager commandManager = this.server.getCommandManager();
+    commandManager.unregister("fastmotdreload");
+    commandManager.unregister("maintenance");
+
+    commandManager.register("fastmotdreload", new ReloadCommand(this));
+    commandManager.register("maintenance",
+        new MaintenanceCommand(this, serializer.deserialize(Settings.IMP.MAINTENANCE.COMMAND.USAGE)));
 
     if (this.updater != null) {
       this.updater.cancel();
@@ -210,15 +218,9 @@ public class FastMOTD {
     defaultMotdGenerator.generate();
     dest.add(defaultMotdGenerator);
 
-    if (descriptionVersions == null) {
-      descriptionVersions = new HashMap<>();
-    }
-    if (faviconVersions == null) {
-      faviconVersions = new HashMap<>();
-    }
-    if (informationVersions == null) {
-      informationVersions = new HashMap<>();
-    }
+    descriptionVersions = Objects.requireNonNullElseGet(descriptionVersions, HashMap::new);
+    faviconVersions = Objects.requireNonNullElseGet(faviconVersions, HashMap::new);
+    informationVersions = Objects.requireNonNullElseGet(informationVersions, HashMap::new);
 
     Int2ObjectMap<List<String>> protocolDescriptions = new Int2ObjectOpenHashMap<>();
     Int2ObjectMap<List<String>> protocolIcons = new Int2ObjectOpenHashMap<>();
@@ -240,8 +242,7 @@ public class FastMOTD {
       key.addAll(protocolDescriptions.getOrDefault(protocol, defaultDescriptions));
       key.addAll(protocolIcons.getOrDefault(protocol, defaultFavicons));
       key.addAll(protocolInformation.getOrDefault(protocol, defaultInformation));
-      protocolsByData.putIfAbsent(key, new IntOpenHashSet());
-      protocolsByData.get(key).add(protocol);
+      protocolsByData.computeIfAbsent(key, k -> new IntOpenHashSet()).add(protocol);
     });
 
     protocolsByData.values().forEach(identical -> {
@@ -266,10 +267,7 @@ public class FastMOTD {
       } else {
         range = IntStream.of(Integer.parseInt(key));
       }
-      range.forEach(protocol -> {
-        dest.putIfAbsent(protocol, new ArrayList<>());
-        dest.get(protocol).addAll(value);
-      });
+      range.forEach(protocol -> dest.computeIfAbsent(protocol, p -> new ArrayList<>()).addAll(value));
     });
   }
 
@@ -345,6 +343,10 @@ public class FastMOTD {
 
   public PreparedPacket getKickReason() {
     return this.kickReason;
+  }
+
+  public File getConfigFile() {
+    return this.configFile;
   }
 
   private enum MaxCountType {

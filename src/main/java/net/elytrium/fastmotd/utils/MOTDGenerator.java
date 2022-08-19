@@ -30,11 +30,9 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
 import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
-import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
@@ -61,7 +59,7 @@ public class MOTDGenerator {
     this.descriptions = descriptions;
     this.favicons = favicons;
     this.information = information;
-    this.holdersAmount = this.descriptions.size() * this.notZero(this.favicons.size());
+    this.holdersAmount = this.descriptions.size() * Math.max(1, this.favicons.size());
     this.holders = new MOTDHolder[this.holdersAmount];
   }
 
@@ -92,13 +90,7 @@ public class MOTDGenerator {
   }
 
   private String getFavicon(Path faviconLocation) throws IOException {
-    BufferedImage image;
-    try (ImageInputStream in = ImageIO.createImageInputStream(Files.newInputStream(faviconLocation))) {
-      ImageReader reader = ImageIO.getImageReadersByFormatName("png").next();
-      reader.setInput(in, true, false);
-      image = reader.read(0);
-      reader.dispose();
-    }
+    BufferedImage image = ImageIO.read(Files.newInputStream(faviconLocation));
 
     ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
     try (ImageOutputStream out = ImageIO.createImageOutputStream(outBytes)) {
@@ -137,14 +129,6 @@ public class MOTDGenerator {
       if (holder != null) {
         holder.dispose();
       }
-    }
-  }
-
-  private int notZero(int input) {
-    if (input == 0) {
-      return 1;
-    } else {
-      return input;
     }
   }
 }
