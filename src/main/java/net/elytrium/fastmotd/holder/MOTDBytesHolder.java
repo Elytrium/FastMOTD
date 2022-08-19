@@ -36,6 +36,7 @@ public class MOTDBytesHolder {
   private final int maxOnlineDigit;
   private final int onlineDigit;
   private final int protocolDigit;
+  private ThreadLocal<ByteBuf> localByteBuf;
 
   public MOTDBytesHolder(ComponentSerializer<Component, Component, String> inputSerializer, GsonComponentSerializer outputSerializer,
                          String name, Component description, String favicon, List<String> information) {
@@ -88,6 +89,8 @@ public class MOTDBytesHolder {
     this.byteBuf.writeByte(0);
     ProtocolUtils.writeVarInt(this.byteBuf, bytes.length);
     this.byteBuf.writeBytes(bytes);
+
+    this.localByteBuf = ThreadLocal.withInitial(this.byteBuf::copy);
   }
 
   public void replaceOnline(int max, int online) {
@@ -101,10 +104,12 @@ public class MOTDBytesHolder {
     this.byteBuf.setByte(digit + 2, to >= 100 ? (to / 100 % 10) + '0' : ' ');
     this.byteBuf.setByte(digit + 3, to >= 10 ? (to / 10 % 10) + '0' : ' ');
     this.byteBuf.setByte(digit + 4, (to % 10) + '0');
+
+    this.localByteBuf = ThreadLocal.withInitial(this.byteBuf::copy);
   }
 
   public ByteBuf getByteBuf(ProtocolVersion version, boolean replaceProtocol) {
-    ByteBuf buf = this.byteBuf.copy();
+    ByteBuf buf = this.localByteBuf.get();
 
     if (replaceProtocol) {
       int protocol = version.getProtocol();
