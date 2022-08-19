@@ -116,7 +116,7 @@ public class MOTDBytesHolder {
       this.replaceStrInt(buf, this.protocolDigit, protocol);
     }
 
-    return buf;
+    return buf.retain();
   }
 
   private void replaceStrInt(ByteBuf buf, int startIndex, int toSet) {
