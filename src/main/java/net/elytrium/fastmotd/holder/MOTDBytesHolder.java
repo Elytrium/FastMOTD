@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import net.elytrium.fastmotd.utils.ByteBufCopyThreadLocal;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
@@ -36,7 +37,7 @@ public class MOTDBytesHolder {
   private final int maxOnlineDigit;
   private final int onlineDigit;
   private final int protocolDigit;
-  private ThreadLocal<ByteBuf> localByteBuf;
+  private ByteBufCopyThreadLocal localByteBuf;
 
   public MOTDBytesHolder(ComponentSerializer<Component, Component, String> inputSerializer, GsonComponentSerializer outputSerializer,
                          String name, Component description, String favicon, List<String> information) {
@@ -90,7 +91,7 @@ public class MOTDBytesHolder {
     ProtocolUtils.writeVarInt(this.byteBuf, bytes.length);
     this.byteBuf.writeBytes(bytes);
 
-    this.localByteBuf = ThreadLocal.withInitial(this.byteBuf::copy);
+    this.localByteBuf = new ByteBufCopyThreadLocal(this.byteBuf);
   }
 
   public void replaceOnline(int max, int online) {
@@ -105,7 +106,8 @@ public class MOTDBytesHolder {
     this.byteBuf.setByte(digit + 3, to >= 10 ? (to / 10 % 10) + '0' : ' ');
     this.byteBuf.setByte(digit + 4, (to % 10) + '0');
 
-    this.localByteBuf = ThreadLocal.withInitial(this.byteBuf::copy);
+    this.localByteBuf.release();
+    this.localByteBuf = new ByteBufCopyThreadLocal(this.byteBuf);
   }
 
   public ByteBuf getByteBuf(ProtocolVersion version, boolean replaceProtocol) {
@@ -132,5 +134,6 @@ public class MOTDBytesHolder {
 
   public void dispose() {
     this.byteBuf.release();
+    this.localByteBuf.release();
   }
 }
