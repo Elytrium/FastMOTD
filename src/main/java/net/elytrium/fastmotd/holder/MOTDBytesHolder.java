@@ -19,11 +19,14 @@ package net.elytrium.fastmotd.holder;
 
 import com.google.common.primitives.Bytes;
 import com.velocitypowered.api.network.ProtocolVersion;
+import com.velocitypowered.api.proxy.server.ServerPing;
+import com.velocitypowered.api.util.Favicon;
 import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 import net.elytrium.fastmotd.utils.ByteBufCopyThreadLocal;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
@@ -38,12 +41,17 @@ public class MOTDBytesHolder {
   private final int onlineDigit;
   private final int protocolDigit;
   private ByteBufCopyThreadLocal localByteBuf;
+  private ServerPing compatPingInfo;
 
   public MOTDBytesHolder(ComponentSerializer<Component, Component, String> inputSerializer, GsonComponentSerializer outputSerializer,
                          String name, Component description, String favicon, List<String> information) {
     this.inputSerializer = inputSerializer;
+    ServerPing.Builder compatServerPingBuilder = ServerPing.builder();
 
     StringBuilder motd = new StringBuilder("{\"players\":{\"max\":    0,\"online\":    1,\"sample\":[");
+
+    compatServerPingBuilder.maximumPlayers(0);
+    compatServerPingBuilder.onlinePlayers(1);
 
     int lastIdx = information.size() - 1;
     if (lastIdx != -1) {
@@ -59,6 +67,10 @@ public class MOTDBytesHolder {
       motd.append("{\"id\":\"00000000-0000-0000-0000-000000000009\",\"name\":\"")
           .append(this.toLegacy(information.get(lastIdx)))
           .append("\"}");
+
+      compatServerPingBuilder.samplePlayers(information.stream()
+          .map(e -> new ServerPing.SamplePlayer(this.toLegacy(e), UUID.randomUUID()))
+          .toArray(ServerPing.SamplePlayer[]::new));
     }
 
     motd.append("]},\"description\":")
@@ -67,10 +79,15 @@ public class MOTDBytesHolder {
         .append(name)
         .append("\",\"protocol\":        1}");
 
+    compatServerPingBuilder.description(description);
+    compatServerPingBuilder.version(new ServerPing.Version(1, name));
+
     if (favicon != null && !favicon.isEmpty()) {
       motd.append(",\"favicon\":\"")
           .append(favicon)
           .append("\"");
+
+      compatServerPingBuilder.favicon(new Favicon(favicon));
     }
 
     motd.append("}");
@@ -92,11 +109,17 @@ public class MOTDBytesHolder {
     this.byteBuf.writeBytes(bytes);
 
     this.localByteBuf = new ByteBufCopyThreadLocal(this.byteBuf);
+    this.compatPingInfo = compatServerPingBuilder.build();
   }
 
   public void replaceOnline(int max, int online) {
     this.localReplaceOnline(this.maxOnlineDigit, max);
     this.localReplaceOnline(this.onlineDigit, online);
+
+    this.compatPingInfo = this.compatPingInfo.asBuilder()
+        .maximumPlayers(max)
+        .onlinePlayers(online)
+        .build();
   }
 
   private void localReplaceOnline(int digit, int to) {
@@ -110,21 +133,35 @@ public class MOTDBytesHolder {
     this.localByteBuf = new ByteBufCopyThreadLocal(this.byteBuf);
   }
 
+  public ServerPing getCompatPingInfo(ProtocolVersion version, boolean replaceProtocol) {
+    if (replaceProtocol) {
+      return this.compatPingInfo.asBuilder()
+          .version(new ServerPing.Version(version.getProtocol(), this.compatPingInfo.getVersion().getName()))
+          .build();
+    } else {
+      return this.compatPingInfo;
+    }
+  }
+
   public ByteBuf getByteBuf(ProtocolVersion version, boolean replaceProtocol) {
     ByteBuf buf = this.localByteBuf.get();
 
     if (replaceProtocol) {
       int protocol = version.getProtocol();
-      this.replaceStrInt(buf, this.protocolDigit, protocol);
+      this.replaceStrInt(buf, this.protocolDigit, this.protocolDigit - 9, protocol);
     }
 
     return buf.retain();
   }
 
-  private void replaceStrInt(ByteBuf buf, int startIndex, int toSet) {
+  private void replaceStrInt(ByteBuf buf, int startIndex, int endIndex, int toSet) {
     while (toSet > 0) {
       buf.setByte(startIndex--, (toSet % 10) + '0');
       toSet /= 10;
+    }
+
+    while (startIndex != endIndex) {
+      buf.setByte(startIndex--, ' ');
     }
   }
 

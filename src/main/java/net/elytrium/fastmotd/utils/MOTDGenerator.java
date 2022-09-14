@@ -18,6 +18,7 @@
 package net.elytrium.fastmotd.utils;
 
 import com.velocitypowered.api.network.ProtocolVersion;
+import com.velocitypowered.api.proxy.server.ServerPing;
 import io.netty.buffer.ByteBuf;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -122,6 +123,10 @@ public class MOTDGenerator {
 
   public ByteBuf getNext(ProtocolVersion version, boolean replaceProtocol) {
     return this.holders[ThreadLocalRandom.current().nextInt(this.holdersAmount)].getByteBuf(version, replaceProtocol);
+  }
+
+  public ServerPing getNextCompat(ProtocolVersion version, boolean replaceProtocol) {
+    return this.holders[ThreadLocalRandom.current().nextInt(this.holdersAmount)].getCompatPingInfo(version, replaceProtocol);
   }
 
   public void dispose() {

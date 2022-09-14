@@ -18,6 +18,7 @@
 package net.elytrium.fastmotd.holder;
 
 import com.velocitypowered.api.network.ProtocolVersion;
+import com.velocitypowered.api.proxy.server.ServerPing;
 import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
@@ -50,6 +51,14 @@ public class MOTDHolder {
       return this.modernHolder.getByteBuf(version, replaceProtocol);
     } else {
       return this.legacyHolder.getByteBuf(version, replaceProtocol);
+    }
+  }
+
+  public ServerPing getCompatPingInfo(ProtocolVersion version, boolean replaceProtocol) {
+    if (version.compareTo(ProtocolVersion.MINECRAFT_1_16) >= 0) {
+      return this.modernHolder.getCompatPingInfo(version, replaceProtocol);
+    } else {
+      return this.legacyHolder.getCompatPingInfo(version, replaceProtocol);
     }
   }
 

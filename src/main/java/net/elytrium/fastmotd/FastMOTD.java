@@ -19,12 +19,14 @@ package net.elytrium.fastmotd;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.event.EventManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.ServerPing;
 import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
@@ -59,6 +61,7 @@ import net.elytrium.fastmotd.command.MaintenanceCommand;
 import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.dummy.DummyPlayer;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
+import net.elytrium.fastmotd.listener.CompatPingListener;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.fastprepare.PreparedPacket;
 import net.elytrium.fastprepare.PreparedPacketFactory;
@@ -169,6 +172,10 @@ public class FastMOTD {
     commandManager.register("fastmotdreload", new ReloadCommand(this));
     commandManager.register("maintenance",
         new MaintenanceCommand(this, serializer.deserialize(Settings.IMP.MAINTENANCE.COMMAND.USAGE)));
+
+    EventManager eventManager = this.server.getEventManager();
+    eventManager.unregisterListeners(this);
+    eventManager.register(this, new CompatPingListener(this));
 
     if (this.updater != null) {
       this.updater.cancel();
@@ -322,6 +329,17 @@ public class FastMOTD {
     } else {
       return this.motdGenerators.get(
               this.protocolPointers.getOrDefault(version.getProtocol(), 0)).getNext(version, true);
+    }
+  }
+
+  public ServerPing getNextCompat(ProtocolVersion version) {
+    if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
+      return this.maintenanceMOTDGenerators.get(
+              this.maintenanceProtocolPointers.getOrDefault(version.getProtocol(), 0))
+              .getNextCompat(version, !Settings.IMP.MAINTENANCE.SHOW_VERSION);
+    } else {
+      return this.motdGenerators.get(
+              this.protocolPointers.getOrDefault(version.getProtocol(), 0)).getNextCompat(version, true);
     }
   }
 
