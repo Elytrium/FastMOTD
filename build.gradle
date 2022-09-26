@@ -34,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.elytrium:elytrium-java-commons:1.0.7")
+    implementation("net.elytrium:elytrium-java-commons:1.0.8")
     implementation("net.elytrium:fastprepare:1.0.2")
     implementation("it.unimi.dsi:fastutil-core:8.5.8")
     compileOnly("com.velocitypowered:velocity-api:3.1.2-SNAPSHOT")
