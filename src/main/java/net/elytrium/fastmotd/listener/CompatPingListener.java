@@ -19,6 +19,7 @@ package net.elytrium.fastmotd.listener;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyPingEvent;
+import com.velocitypowered.api.proxy.InboundConnection;
 import net.elytrium.fastmotd.FastMOTD;
 
 public class CompatPingListener {
@@ -31,6 +32,11 @@ public class CompatPingListener {
 
   @Subscribe
   public void onPing(ProxyPingEvent event) {
-    event.setPing(this.plugin.getNextCompat(event.getConnection().getProtocolVersion()));
+    InboundConnection connection = event.getConnection();
+    event.setPing(this.plugin.getNextCompat(
+        connection.getProtocolVersion(),
+        connection.getVirtualHost()
+            .map(address -> address.getHostName() + ":" + address.getPort())
+            .orElse(null)));
   }
 }

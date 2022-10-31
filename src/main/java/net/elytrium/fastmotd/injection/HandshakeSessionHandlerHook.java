@@ -43,6 +43,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
   private final Channel channel;
   private final HandshakeSessionHandler original;
   private ProtocolVersion protocolVersion;
+  private String serverAddress;
 
   public HandshakeSessionHandlerHook(FastMOTD plugin, MinecraftConnection connection, Channel channel, HandshakeSessionHandler original) {
     super(connection, plugin.getServer());
@@ -68,6 +69,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
   public boolean handle(Handshake handshake) {
     if (handshake.getNextStatus() == StateRegistry.STATUS_ID) {
       this.protocolVersion = handshake.getProtocolVersion();
+      this.serverAddress = handshake.getServerAddress() + ":" + handshake.getPort();
       this.channel.pipeline().remove(Connections.FRAME_ENCODER);
       this.channel.pipeline().get(MinecraftDecoder.class).setState(StateRegistry.STATUS);
 
@@ -102,7 +104,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
       this.channel.writeAndFlush(buf);
       this.connection.close();
     } else if (packet instanceof StatusRequest) {
-      this.channel.writeAndFlush(this.plugin.getNext(this.protocolVersion));
+      this.channel.writeAndFlush(this.plugin.getNext(this.protocolVersion, this.serverAddress));
     } else {
       this.original.handleGeneric(packet);
     }

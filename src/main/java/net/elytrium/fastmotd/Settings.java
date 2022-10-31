@@ -80,6 +80,8 @@ public class Settings extends YamlConfig {
       @Comment("null = disabled")
       public Map<String, List<String>> INFORMATION = Map.of("757-758", List.of("Your", "protocol", "version", "is 757 or 758"));
     }
+
+    public Map<String, DOMAIN_MOTD_NODE> DOMAINS = Map.of("example.com:25565", YamlConfig.createNodeSequence(DOMAIN_MOTD_NODE.class));
   }
 
   @Create
@@ -116,11 +118,21 @@ public class Settings extends YamlConfig {
       public Map<String, List<String>> INFORMATION = Map.of("756-759", List.of("Server is", "under", "maintenance"));
     }
 
+    public Map<String, DOMAIN_MOTD_NODE> DOMAINS = Map.of("example.com:25565", YamlConfig.createNodeSequence(DOMAIN_MOTD_NODE.class));
+
     @Create
     public COMMAND COMMAND;
 
     public static class COMMAND {
       public String USAGE = "{PRFX} Usage: <gold>/maintenance <off|on|toggle></gold>";
     }
+  }
+
+  @NodeSequence
+  public static class DOMAIN_MOTD_NODE {
+
+    public List<String> DESCRIPTION = List.of("Description for example.com");
+    public List<String> FAVICON = List.of("example-com-server-icon.png");
+    public List<String> INFORMATION = List.of("Information for example.com");
   }
 }
