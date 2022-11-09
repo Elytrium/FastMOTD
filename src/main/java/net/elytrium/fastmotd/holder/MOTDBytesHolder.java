@@ -129,8 +129,9 @@ public class MOTDBytesHolder {
     this.byteBuf.setByte(digit + 3, to >= 10 ? (to / 10 % 10) + '0' : ' ');
     this.byteBuf.setByte(digit + 4, (to % 10) + '0');
 
-    this.localByteBuf.release();
+    ByteBufCopyThreadLocal previousLocalBuffer = this.localByteBuf;
     this.localByteBuf = new ByteBufCopyThreadLocal(this.byteBuf);
+    previousLocalBuffer.release();
   }
 
   public ServerPing getCompatPingInfo(ProtocolVersion version, boolean replaceProtocol) {

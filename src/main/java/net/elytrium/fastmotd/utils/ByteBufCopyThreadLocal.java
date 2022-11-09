@@ -18,24 +18,27 @@
 package net.elytrium.fastmotd.utils;
 
 import io.netty.buffer.ByteBuf;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 
 public class ByteBufCopyThreadLocal extends ThreadLocal<ByteBuf> {
 
-  private final ByteBuf from;
-  private final List<ByteBuf> byteBuffers = Collections.synchronizedList(new LinkedList<>());
+  private final List<ByteBuf> byteBuffers = new LinkedList<>();
+  private final ListIterator<ByteBuf> byteBufferIterator;
 
   public ByteBufCopyThreadLocal(ByteBuf from) {
     super();
-    this.from = from;
+
+    for (int i = 0; i < Runtime.getRuntime().availableProcessors(); ++i) {
+      this.byteBuffers.add(from.copy());
+    }
+
+    this.byteBufferIterator = this.byteBuffers.listIterator();
   }
 
   protected ByteBuf initialValue() {
-    ByteBuf copy = this.from.copy();
-    this.byteBuffers.add(copy);
-    return copy;
+    return this.byteBufferIterator.next();
   }
 
   public void release() {
