@@ -36,14 +36,14 @@ repositories {
 dependencies {
     implementation("net.elytrium:elytrium-java-commons:1.0.8")
     implementation("net.elytrium:fastprepare:1.0.2")
-    implementation("it.unimi.dsi:fastutil-core:8.5.8")
+    implementation('it.unimi.dsi:fastutil-core:8.5.9')
     compileOnly("com.velocitypowered:velocity-api:3.1.2-SNAPSHOT")
     annotationProcessor("com.velocitypowered:velocity-api:3.1.2-SNAPSHOT")
     compileOnly("com.velocitypowered:velocity-proxy:3.1.2-SNAPSHOT")
-    compileOnly("com.github.spotbugs:spotbugs-annotations:4.7.0")
+    compileOnly('com.github.spotbugs:spotbugs-annotations:4.7.2')
     // Needs for some velocity methods.
-    compileOnly("io.netty:netty-codec:4.1.77.Final")
-    compileOnly("io.netty:netty-handler:4.1.77.Final")
+    compileOnly('io.netty:netty-codec:4.1.82.Final')
+    compileOnly('io.netty:netty-handler:4.1.82.Final')
 
     implementation("org.bstats:bstats-velocity:3.0.0")
 }
