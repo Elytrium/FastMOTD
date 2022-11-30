@@ -6,7 +6,7 @@
 [![Proxy Stats](https://img.shields.io/bstats/servers/15640?logo=minecraft&label=Servers)](https://bstats.org/plugin/velocity/FastMOTD/15640)
 [![Proxy Stats](https://img.shields.io/bstats/players/15640?logo=minecraft&label=Players)](https://bstats.org/plugin/velocity/FastMOTD/15640)
 
-A MOTD plugin for Velocity that catches network packets. This helps it be the fastest one of the MOTD plugins. <br>
+A MOTD plugin for Velocity that caches network packets. This helps it be the fastest one of the MOTD plugins. <br>
 Test server: [``ely.su``](https://hotmc.ru/minecraft-server-203216)
 
 ## Features
