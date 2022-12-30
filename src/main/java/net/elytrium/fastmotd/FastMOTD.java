@@ -229,14 +229,14 @@ public class FastMOTD {
           Map<String, List<String>> descriptionVersions, Map<String, List<String>> faviconVersions,
           Map<String, List<String>> informationVersions, Map<String, Settings.DOMAIN_MOTD_NODE> domainMotd,
           Map<String, MOTDGenerator> domainDest) {
-    MOTDGenerator defaultMotdGenerator =
-            new MOTDGenerator(this, serializer, versionName, defaultDescriptions, defaultFavicons, defaultInformation);
-    defaultMotdGenerator.generate();
-    dest.add(defaultMotdGenerator);
-
     descriptionVersions = Objects.requireNonNullElseGet(descriptionVersions, HashMap::new);
     faviconVersions = Objects.requireNonNullElseGet(faviconVersions, HashMap::new);
     informationVersions = Objects.requireNonNullElseGet(informationVersions, HashMap::new);
+
+    MOTDGenerator defaultMotdGenerator =
+        new MOTDGenerator(this, serializer, versionName, defaultDescriptions, defaultFavicons, defaultInformation);
+    defaultMotdGenerator.generate();
+    dest.add(defaultMotdGenerator);
 
     Int2ObjectMap<List<String>> protocolDescriptions = new Int2ObjectOpenHashMap<>();
     Int2ObjectMap<List<String>> protocolIcons = new Int2ObjectOpenHashMap<>();
