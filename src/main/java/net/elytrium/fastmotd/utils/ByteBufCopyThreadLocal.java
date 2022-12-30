@@ -43,7 +43,9 @@ public class ByteBufCopyThreadLocal extends ThreadLocal<ByteBuf> {
 
   public void release() {
     for (ByteBuf byteBuffer : this.byteBuffers) {
-      byteBuffer.release();
+      if (byteBuffer.refCnt() != 0) {
+        byteBuffer.release();
+      }
     }
   }
 }

@@ -171,7 +171,10 @@ public class MOTDBytesHolder {
   }
 
   public void dispose() {
-    this.byteBuf.release();
+    if (this.byteBuf.refCnt() != 0) {
+      this.byteBuf.release();
+    }
+
     this.localByteBuf.release();
   }
 }
