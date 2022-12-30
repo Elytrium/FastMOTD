@@ -49,6 +49,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -232,9 +233,12 @@ public class FastMOTD {
     descriptionVersions = Objects.requireNonNullElseGet(descriptionVersions, HashMap::new);
     faviconVersions = Objects.requireNonNullElseGet(faviconVersions, HashMap::new);
     informationVersions = Objects.requireNonNullElseGet(informationVersions, HashMap::new);
+    List<String> nonNullDefaultDescriptions = Objects.requireNonNullElseGet(defaultDescriptions, Collections::emptyList);
+    List<String> nonNullDefaultFavicons = Objects.requireNonNullElseGet(defaultFavicons, Collections::emptyList);
+    List<String> nonNullDefaultInformation = Objects.requireNonNullElseGet(defaultInformation, Collections::emptyList);
 
     MOTDGenerator defaultMotdGenerator =
-        new MOTDGenerator(this, serializer, versionName, defaultDescriptions, defaultFavicons, defaultInformation);
+        new MOTDGenerator(this, serializer, versionName, nonNullDefaultDescriptions, nonNullDefaultFavicons, nonNullDefaultInformation);
     defaultMotdGenerator.generate();
     dest.add(defaultMotdGenerator);
 
@@ -255,9 +259,9 @@ public class FastMOTD {
 
     allProtocols.forEach(protocol -> {
       List<String> key = new ArrayList<>();
-      key.addAll(protocolDescriptions.getOrDefault(protocol, defaultDescriptions));
-      key.addAll(protocolIcons.getOrDefault(protocol, defaultFavicons));
-      key.addAll(protocolInformation.getOrDefault(protocol, defaultInformation));
+      key.addAll(protocolDescriptions.getOrDefault(protocol, nonNullDefaultDescriptions));
+      key.addAll(protocolIcons.getOrDefault(protocol, nonNullDefaultFavicons));
+      key.addAll(protocolInformation.getOrDefault(protocol, nonNullDefaultInformation));
       protocolsByData.computeIfAbsent(key, k -> new IntOpenHashSet()).add(protocol);
     });
 
@@ -265,9 +269,9 @@ public class FastMOTD {
       final int idx = dest.size();
       final int key = identical.iterator().nextInt();
       MOTDGenerator motdGenerator = new MOTDGenerator(this, serializer, versionName,
-              protocolDescriptions.getOrDefault(key, defaultDescriptions),
-              protocolIcons.getOrDefault(key, defaultFavicons),
-              protocolInformation.getOrDefault(key, defaultInformation));
+              protocolDescriptions.getOrDefault(key, nonNullDefaultDescriptions),
+              protocolIcons.getOrDefault(key, nonNullDefaultFavicons),
+              protocolInformation.getOrDefault(key, nonNullDefaultInformation));
       motdGenerator.generate();
       dest.add(motdGenerator);
       identical.forEach(p -> destPointers.put(p, idx));
