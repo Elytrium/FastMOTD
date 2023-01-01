@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Elytrium
+ * Copyright (C) 2022 - 2023 Elytrium
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -78,10 +78,9 @@ import org.slf4j.Logger;
     name = "FastMOTD",
     version = "1.0.0",
     description = "MOTD plugin that uses FastPrepareAPI.",
-    url = "ely.su",
+    url = "https://elytrium.net/",
     authors = {
-        "hevav",
-        "mdxd44"
+        "Elytrium (https://elytrium.net/)",
     }
 )
 public class FastMOTD {
