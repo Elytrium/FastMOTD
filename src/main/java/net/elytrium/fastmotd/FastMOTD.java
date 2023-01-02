@@ -66,7 +66,6 @@ import net.elytrium.fastmotd.listener.CompatPingListener;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.fastprepare.PreparedPacket;
 import net.elytrium.fastprepare.PreparedPacketFactory;
-import net.elytrium.java.commons.mc.serialization.Serializers;
 import net.elytrium.java.commons.reflection.ReflectionException;
 import net.elytrium.java.commons.updates.UpdatesChecker;
 import net.kyori.adventure.text.Component;
@@ -153,7 +152,7 @@ public class FastMOTD {
     }
     this.metricsFactory.make(this, 15640);
 
-    ComponentSerializer<Component, Component, String> serializer = Serializers.valueOf(Settings.IMP.SERIALIZER).getSerializer();
+    ComponentSerializer<Component, Component, String> serializer = Settings.IMP.SERIALIZER.getSerializer();
     if (serializer == null) {
       this.logger.error("Incorrect serializer set: {}", Settings.IMP.SERIALIZER);
       return;
@@ -334,7 +333,7 @@ public class FastMOTD {
 
   private int getMax(int online) {
     int max;
-    MaxCountType type = MaxCountType.valueOf(Settings.IMP.MAIN.MAX_COUNT_TYPE);
+    MaxCountType type = Settings.IMP.MAIN.MAX_COUNT_TYPE;
     switch (type) {
       case ADD_SOME:
         max = online + Settings.IMP.MAIN.MAX_COUNT;
@@ -397,7 +396,7 @@ public class FastMOTD {
     return this.configFile;
   }
 
-  private enum MaxCountType {
+  public enum MaxCountType {
 
     VARIABLE,
     ADD_SOME

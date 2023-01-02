@@ -34,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.elytrium:elytrium-java-commons:1.0.8")
+    implementation("net.elytrium:java-commons:1.1.0-SNAPSHOT")
     implementation("net.elytrium:fastprepare:1.0.4")
     implementation('it.unimi.dsi:fastutil-core:8.5.11')
     compileOnly("com.velocitypowered:velocity-api:3.2.0-SNAPSHOT")
@@ -100,6 +100,7 @@ shadowJar {
 
     relocate("org.bstats", "net.elytrium.fastmotd.thirdparty.org.bstats")
     relocate("net.elytrium.fastprepare", "net.elytrium.fastmotd.thirdparty.fastprepare")
+    relocate("net.elytrium.java.commons", "net.elytrium.fastmotd.thirdparty.commons")
     relocate("it.unimi.dsi.fastutil", "net.elytrium.fastmotd.thirdparty.it.unimi.dsi.fastutil")
 }
 

@@ -20,6 +20,7 @@ package net.elytrium.fastmotd;
 import java.util.List;
 import java.util.Map;
 import net.elytrium.java.commons.config.YamlConfig;
+import net.elytrium.java.commons.mc.serialization.Serializers;
 
 public class Settings extends YamlConfig {
 
@@ -37,7 +38,7 @@ public class Settings extends YamlConfig {
       "GSON - \"[{\"text\":\"Example\",\"bold\":true,\"color\":\"red\"},{\"text\":\" \",\"bold\":true},{\"text\":\"Text\",\"bold\":true,\"color\":\"blue\"}]\". (https://minecraft.tools/en/json_text.php/)",
       "GSON_COLOR_DOWNSAMPLING - Same as GSON, but uses downsampling."
   })
-  public String SERIALIZER = "MINIMESSAGE";
+  public Serializers SERIALIZER = Serializers.MINIMESSAGE;
   public String PREFIX = "FastMOTD <gold>>></gold>";
 
   @Create
@@ -54,7 +55,7 @@ public class Settings extends YamlConfig {
         "VARIABLE - from max-count parameter",
         "ADD_SOME - will add up the number from max-count parameter to current online players amount"
     })
-    public String MAX_COUNT_TYPE = "VARIABLE";
+    public FastMOTD.MaxCountType MAX_COUNT_TYPE = FastMOTD.MaxCountType.VARIABLE;
     public int MAX_COUNT = 4444;
     public int FAKE_ONLINE_ADD_SINGLE = 5;
     public int FAKE_ONLINE_ADD_PERCENT = 20;
