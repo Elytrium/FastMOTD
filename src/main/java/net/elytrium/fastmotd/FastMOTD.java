@@ -136,7 +136,7 @@ public class FastMOTD {
     }
 
     this.preparedPacketFactory =
-        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1);
+        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false);
 
     this.reload();
   }
