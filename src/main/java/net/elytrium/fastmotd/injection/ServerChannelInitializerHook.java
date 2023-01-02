@@ -23,22 +23,24 @@ import com.velocitypowered.proxy.connection.client.HandshakeSessionHandler;
 import com.velocitypowered.proxy.network.Connections;
 import com.velocitypowered.proxy.network.ServerChannelInitializer;
 import io.netty.channel.Channel;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import net.elytrium.fastmotd.FastMOTD;
+import net.elytrium.java.commons.reflection.ReflectionException;
 
 public class ServerChannelInitializerHook extends ServerChannelInitializer {
 
-  private static Method initChannel;
+  private static final MethodHandle initChannel;
   private final FastMOTD plugin;
   private final ServerChannelInitializer oldHook;
 
   static {
     try {
-      initChannel = ServerChannelInitializer.class.getDeclaredMethod("initChannel", Channel.class);
-      initChannel.setAccessible(true);
-    } catch (NoSuchMethodException e) {
-      e.printStackTrace();
+      initChannel = MethodHandles.privateLookupIn(ServerChannelInitializer.class, MethodHandles.lookup())
+          .findVirtual(ServerChannelInitializer.class, "initChannel", MethodType.methodType(void.class, Channel.class));
+    } catch (NoSuchMethodException | IllegalAccessException e) {
+      throw new ReflectionException(e);
     }
   }
 
@@ -51,9 +53,9 @@ public class ServerChannelInitializerHook extends ServerChannelInitializer {
   @Override
   protected void initChannel(Channel ch) {
     try {
-      initChannel.invoke(this.oldHook, ch);
-    } catch (IllegalAccessException | InvocationTargetException e) {
-      e.printStackTrace();
+      initChannel.invokeExact(this.oldHook, ch);
+    } catch (Throwable e) {
+      throw new ReflectionException(e);
     }
 
     MinecraftConnection connection = (MinecraftConnection) ch.pipeline().get(Connections.HANDLER);

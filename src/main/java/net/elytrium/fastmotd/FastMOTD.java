@@ -67,6 +67,7 @@ import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.fastprepare.PreparedPacket;
 import net.elytrium.fastprepare.PreparedPacketFactory;
 import net.elytrium.java.commons.mc.serialization.Serializers;
+import net.elytrium.java.commons.reflection.ReflectionException;
 import net.elytrium.java.commons.updates.UpdatesChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
@@ -85,8 +86,8 @@ import org.slf4j.Logger;
 )
 public class FastMOTD {
 
-  private static Field connectionManager;
-  private static Field initializer;
+  private static final Field connectionManager;
+  private static final Field initializer;
 
   private final Logger logger;
   private final VelocityServer server;
@@ -111,7 +112,7 @@ public class FastMOTD {
       initializer = ServerChannelInitializerHolder.class.getDeclaredField("initializer");
       initializer.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      e.printStackTrace();
+      throw new ReflectionException(e);
     }
   }
 
@@ -132,7 +133,7 @@ public class FastMOTD {
       this.logger.info("Hooked into ServerChannelInitializer");
     } catch (IllegalAccessException e) {
       this.logger.info("Error while hooking into ServerChannelInitializer");
-      e.printStackTrace();
+      throw new ReflectionException(e);
     }
 
     this.preparedPacketFactory =
