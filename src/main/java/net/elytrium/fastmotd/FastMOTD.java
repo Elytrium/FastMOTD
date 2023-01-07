@@ -77,7 +77,7 @@ import org.slf4j.Logger;
 @Plugin(
     id = "fastmotd",
     name = "FastMOTD",
-    version = "1.0.0",
+    version = BuildConstants.VERSION,
     description = "MOTD plugin that uses FastPrepareAPI.",
     url = "https://elytrium.net/",
     authors = {
