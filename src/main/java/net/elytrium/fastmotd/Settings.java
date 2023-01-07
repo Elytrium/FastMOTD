@@ -129,6 +129,17 @@ public class Settings extends YamlConfig {
     }
   }
 
+  @Create
+  public SHUTDOWN_SCHEDULER SHUTDOWN_SCHEDULER;
+
+  public static class SHUTDOWN_SCHEDULER {
+    @Comment("Server will stop accepting new connections")
+    public boolean SHUTDOWN_SCHEDULER_ENABLED = false;
+    @Comment("Server will shut down after everyone has left the server")
+    public boolean SHUTDOWN_ON_ZERO_PLAYERS = false;
+    public List<String> WHITELIST = List.of("127.0.0.1");
+  }
+
   @NodeSequence
   public static class DOMAIN_MOTD_NODE {
 

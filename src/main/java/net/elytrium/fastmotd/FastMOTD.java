@@ -31,11 +31,11 @@ import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
 import com.velocitypowered.proxy.network.ConnectionManager;
-import com.velocitypowered.proxy.network.ServerChannelInitializer;
 import com.velocitypowered.proxy.network.ServerChannelInitializerHolder;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.packet.Disconnect;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
@@ -63,6 +63,7 @@ import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.dummy.DummyPlayer;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.listener.CompatPingListener;
+import net.elytrium.fastmotd.listener.DisconnectOnZeroPlayersListener;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.fastprepare.PreparedPacket;
 import net.elytrium.fastprepare.PreparedPacketFactory;
@@ -127,8 +128,8 @@ public class FastMOTD {
   public void onProxyInitialization(ProxyInitializeEvent event) {
     try {
       ConnectionManager cm = (ConnectionManager) connectionManager.get(this.server);
-      ServerChannelInitializer oldInitializer = (ServerChannelInitializer) initializer.get(cm.serverChannelInitializer);
-      initializer.set(cm.serverChannelInitializer, new ServerChannelInitializerHook(this, this.server, oldInitializer));
+      ChannelInitializer<?> oldInitializer = (ChannelInitializer<?>) initializer.get(cm.serverChannelInitializer);
+      initializer.set(cm.serverChannelInitializer, new ServerChannelInitializerHook(this, oldInitializer));
       this.logger.info("Hooked into ServerChannelInitializer");
     } catch (IllegalAccessException e) {
       this.logger.info("Error while hooking into ServerChannelInitializer");
@@ -182,6 +183,10 @@ public class FastMOTD {
     EventManager eventManager = this.server.getEventManager();
     eventManager.unregisterListeners(this);
     eventManager.register(this, new CompatPingListener(this));
+
+    if (Settings.IMP.SHUTDOWN_SCHEDULER.SHUTDOWN_SCHEDULER_ENABLED && Settings.IMP.SHUTDOWN_SCHEDULER.SHUTDOWN_ON_ZERO_PLAYERS) {
+      eventManager.register(this, new DisconnectOnZeroPlayersListener(this));
+    }
 
     if (this.updater != null) {
       this.updater.cancel();

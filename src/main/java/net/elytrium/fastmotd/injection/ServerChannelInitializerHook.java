@@ -17,41 +17,49 @@
 
 package net.elytrium.fastmotd.injection;
 
-import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
 import com.velocitypowered.proxy.connection.client.HandshakeSessionHandler;
 import com.velocitypowered.proxy.network.Connections;
-import com.velocitypowered.proxy.network.ServerChannelInitializer;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.net.InetSocketAddress;
 import net.elytrium.fastmotd.FastMOTD;
+import net.elytrium.fastmotd.Settings;
 import net.elytrium.java.commons.reflection.ReflectionException;
+import org.jetbrains.annotations.NotNull;
 
-public class ServerChannelInitializerHook extends ServerChannelInitializer {
+public class ServerChannelInitializerHook extends ChannelInitializer<Channel> {
 
   private static final MethodHandle initChannel;
   private final FastMOTD plugin;
-  private final ServerChannelInitializer oldHook;
+  private final ChannelInitializer<?> oldHook;
 
   static {
     try {
-      initChannel = MethodHandles.privateLookupIn(ServerChannelInitializer.class, MethodHandles.lookup())
-          .findVirtual(ServerChannelInitializer.class, "initChannel", MethodType.methodType(void.class, Channel.class));
+      initChannel = MethodHandles.privateLookupIn(ChannelInitializer.class, MethodHandles.lookup())
+          .findVirtual(ChannelInitializer.class, "initChannel", MethodType.methodType(void.class, Channel.class));
     } catch (NoSuchMethodException | IllegalAccessException e) {
       throw new ReflectionException(e);
     }
   }
 
-  public ServerChannelInitializerHook(FastMOTD plugin, VelocityServer server, ServerChannelInitializer oldHook) {
-    super(server);
+  public ServerChannelInitializerHook(FastMOTD plugin, ChannelInitializer<?> oldHook) {
     this.plugin = plugin;
     this.oldHook = oldHook;
   }
 
   @Override
-  protected void initChannel(Channel ch) {
+  protected void initChannel(@NotNull Channel ch) {
+    if (Settings.IMP.SHUTDOWN_SCHEDULER.SHUTDOWN_SCHEDULER_ENABLED) {
+      if (!Settings.IMP.SHUTDOWN_SCHEDULER.WHITELIST.contains(((InetSocketAddress) ch.remoteAddress()).getAddress().getHostAddress())) {
+        ch.close();
+        return;
+      }
+    }
+
     try {
       initChannel.invokeExact(this.oldHook, ch);
     } catch (Throwable e) {
