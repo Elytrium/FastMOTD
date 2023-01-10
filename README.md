@@ -17,3 +17,20 @@ Test server: [``ely.su``](https://hotmc.ru/minecraft-server-203216)
 - Caching of network packets
 - Max count "just add up" support
 - PNG built-in compression
+
+## Comparison with other MOTD plugins
+
+Intel Core i9-9700K, DDR4 (a server that is not running any programs):
+
+| Plugin | Pings per second count |
+| - | - |
+| FastMOTD | 1 700 000 - 2 000 000 pings per second |
+| Without MOTD plugins | 900 000 - 1 100 000 pings per second |
+| MiniMOTD | 480 000 - 580 000 pings per second |
+
+Intel Xeon E3-1270, DDR3 (a PC with several applications running):
+| Plugin | Pings per second count |
+| - | - |
+| FastMOTD | 840 000 - 1 000 000 pings per second |
+| Without MOTD plugins | 330 000 - 430 000 pings per second |
+| MiniMOTD | 150 000 - 200 000 pings per second |
