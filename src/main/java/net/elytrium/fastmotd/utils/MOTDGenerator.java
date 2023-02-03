@@ -91,28 +91,33 @@ public class MOTDGenerator {
   }
 
   private String getFavicon(Path faviconLocation) throws IOException {
-    BufferedImage image = ImageIO.read(Files.newInputStream(faviconLocation));
+    byte[] imageBytes;
 
-    ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
-    try (ImageOutputStream out = ImageIO.createImageOutputStream(outBytes)) {
-      ImageTypeSpecifier type = ImageTypeSpecifier.createFromRenderedImage(image);
-      ImageWriter writer = ImageIO.getImageWriters(type, "png").next();
+    if (Settings.IMP.MAIN.PNG_QUALITY < 0) {
+      imageBytes = Files.readAllBytes(faviconLocation);
+    } else {
+      BufferedImage image = ImageIO.read(Files.newInputStream(faviconLocation));
+      ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+      try (ImageOutputStream out = ImageIO.createImageOutputStream(outBytes)) {
+        ImageTypeSpecifier type = ImageTypeSpecifier.createFromRenderedImage(image);
+        ImageWriter writer = ImageIO.getImageWriters(type, "png").next();
 
-      ImageWriteParam param = writer.getDefaultWriteParam();
-      if (param.canWriteCompressed()) {
-        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-        param.setCompressionQuality((float) Settings.IMP.MAIN.PNG_QUALITY);
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        if (param.canWriteCompressed()) {
+          param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+          param.setCompressionQuality((float) Settings.IMP.MAIN.PNG_QUALITY);
+        }
+
+        writer.setOutput(out);
+        writer.write(null, new IIOImage(image, null, null), param);
+        writer.dispose();
       }
 
-      writer.setOutput(out);
-      writer.write(null, new IIOImage(image, null, null), param);
-      writer.dispose();
+      imageBytes = outBytes.toByteArray();
+      outBytes.close();
     }
 
-    String favicon = "data:image/png;base64," + Base64.getEncoder().encodeToString(outBytes.toByteArray());
-    outBytes.close();
-
-    return favicon;
+    return "data:image/png;base64," + Base64.getEncoder().encodeToString(imageBytes);
   }
 
   public void update(int max, int online) {

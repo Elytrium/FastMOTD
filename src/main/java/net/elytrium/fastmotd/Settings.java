@@ -61,7 +61,8 @@ public class Settings extends YamlConfig {
     public int FAKE_ONLINE_ADD_PERCENT = 20;
     @Comment({
         "Accepted values: from 0.0 to 1.0.",
-        "Keep this value as low as possible"
+        "Keep this value as low as possible",
+        "Set -1 to disable PNG recompression"
     })
     public double PNG_QUALITY = 0.0;
     public boolean LOG_PINGS = false;
