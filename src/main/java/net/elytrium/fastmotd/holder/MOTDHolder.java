@@ -19,51 +19,72 @@ package net.elytrium.fastmotd.holder;
 
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.proxy.server.ServerPing;
-import com.velocitypowered.proxy.protocol.ProtocolUtils;
+import com.velocitypowered.api.util.Favicon;
+import com.velocitypowered.proxy.protocol.packet.legacyping.LegacyMinecraftPingVersion;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import net.elytrium.fastmotd.FastMOTD;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 public class MOTDHolder {
 
-  private final MOTDBytesHolder legacyHolder;
-  private final MOTDBytesHolder modernHolder;
+  private final Map<MOTDHolderType, MOTDBytesHolder> holders;
+  private final ServerPing compatPingInfo;
 
-  public MOTDHolder(ComponentSerializer<Component, Component, String> serializer, String versionName,
-                    String descriptionSerialized, String favicon, List<String> information) {
-    String name = versionName.replace("\"", "\\\"");
-    Component description = serializer.deserialize(descriptionSerialized.replace("{NL}", "\n"));
+  public MOTDHolder(FastMOTD plugin, Set<MOTDHolderType> types, ComponentSerializer<Component, Component, String> serializer,
+      String versionName, Component description, String favicon, List<String> information) {
+    ServerPing.Builder compatServerPingBuilder = ServerPing.builder()
+        .maximumPlayers(0)
+        .onlinePlayers(1)
+        .samplePlayers(information.stream()
+            .map(e -> new ServerPing.SamplePlayer(
+                LegacyComponentSerializer.legacySection().serialize(serializer.deserialize(e)), UUID.randomUUID()))
+            .toArray(ServerPing.SamplePlayer[]::new))
+        .description(description)
+        .version(new ServerPing.Version(1, versionName));
 
-    this.legacyHolder =
-        new MOTDBytesHolder(serializer, ProtocolUtils.getJsonChatSerializer(ProtocolVersion.MINECRAFT_1_15_2), name, description, favicon, information);
-    this.modernHolder =
-        new MOTDBytesHolder(serializer, ProtocolUtils.getJsonChatSerializer(ProtocolVersion.MINECRAFT_1_16), name, description, favicon, information);
+    if (favicon != null && !favicon.isEmpty()) {
+      compatServerPingBuilder.favicon(new Favicon(favicon));
+    }
+
+    this.compatPingInfo = compatServerPingBuilder.build();
+    this.holders = types.stream().collect(Collectors.toMap(type -> type, type ->
+        type.initialize(plugin, type, serializer, this.compatPingInfo)));
   }
 
   public void replaceOnline(int max, int online) {
-    this.legacyHolder.replaceOnline(max, online);
-    this.modernHolder.replaceOnline(max, online);
-  }
-
-  public ByteBuf getByteBuf(ProtocolVersion version, boolean replaceProtocol) {
-    if (version.compareTo(ProtocolVersion.MINECRAFT_1_16) >= 0) {
-      return this.modernHolder.getByteBuf(version, replaceProtocol);
-    } else {
-      return this.legacyHolder.getByteBuf(version, replaceProtocol);
+    for (MOTDBytesHolder value : this.holders.values()) {
+      value.replaceOnline(max, online);
     }
   }
 
+  public ByteBuf getByteBuf(ProtocolVersion version, boolean replaceProtocol) {
+    return this.holders.get(MOTDHolderType.map(version)).getByteBuf(version.getProtocol(), replaceProtocol);
+  }
+
+  public ByteBuf getByteBuf(LegacyMinecraftPingVersion version) {
+    return this.holders.get(MOTDHolderType.map(version)).getByteBuf(0, false);
+  }
+
   public ServerPing getCompatPingInfo(ProtocolVersion version, boolean replaceProtocol) {
-    if (version.compareTo(ProtocolVersion.MINECRAFT_1_16) >= 0) {
-      return this.modernHolder.getCompatPingInfo(version, replaceProtocol);
+    if (replaceProtocol) {
+      return this.compatPingInfo.asBuilder()
+          .version(new ServerPing.Version(version.getProtocol(), this.compatPingInfo.getVersion().getName()))
+          .build();
     } else {
-      return this.legacyHolder.getCompatPingInfo(version, replaceProtocol);
+      return this.compatPingInfo;
     }
   }
 
   public void dispose() {
-    this.legacyHolder.dispose();
-    this.modernHolder.dispose();
+    for (MOTDBytesHolder value : this.holders.values()) {
+      value.dispose();
+    }
   }
 }

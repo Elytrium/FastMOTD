@@ -34,6 +34,7 @@ import com.velocitypowered.proxy.network.ConnectionManager;
 import com.velocitypowered.proxy.network.ServerChannelInitializerHolder;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.packet.Disconnect;
+import com.velocitypowered.proxy.protocol.packet.legacyping.LegacyMinecraftPingVersion;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
@@ -50,6 +51,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +63,7 @@ import java.util.stream.IntStream;
 import net.elytrium.fastmotd.command.MaintenanceCommand;
 import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.dummy.DummyPlayer;
+import net.elytrium.fastmotd.holder.MOTDHolderType;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.listener.CompatPingListener;
 import net.elytrium.fastmotd.listener.DisconnectOnZeroPlayersListener;
@@ -99,7 +102,7 @@ public class FastMOTD {
   private final Int2IntMap maintenanceProtocolPointers = new Int2IntOpenHashMap();
   private final Map<String, MOTDGenerator> domainMOTD = new HashMap<>();
   private final Map<String, MOTDGenerator> domainMaintenanceMOTD = new HashMap<>();
-  private PreparedPacketFactory preparedPacketFactory;
+  private PreparedPacketFactory loginPreparedPacketFactory;
   private ScheduledTask updater;
   private PreparedPacket kickReason;
   private Set<InetAddress> kickWhitelist;
@@ -136,7 +139,7 @@ public class FastMOTD {
       throw new ReflectionException(e);
     }
 
-    this.preparedPacketFactory =
+    this.loginPreparedPacketFactory =
         new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false);
 
     this.reload();
@@ -197,7 +200,7 @@ public class FastMOTD {
     }
 
     Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE);
-    this.kickReason = this.preparedPacketFactory
+    this.kickReason = this.loginPreparedPacketFactory
         .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
         .prepare(version -> Disconnect.create(kickReasonComponent, version))
         .build();
@@ -243,7 +246,7 @@ public class FastMOTD {
 
     MOTDGenerator defaultMotdGenerator =
         new MOTDGenerator(this, serializer, versionName, nonNullDefaultDescriptions, nonNullDefaultFavicons, nonNullDefaultInformation);
-    defaultMotdGenerator.generate();
+    defaultMotdGenerator.generate(EnumSet.range(MOTDHolderType.MINECRAFT_1_3, MOTDHolderType.MINECRAFT_1_16));
     dest.add(defaultMotdGenerator);
 
     Int2ObjectMap<List<String>> protocolDescriptions = new Int2ObjectOpenHashMap<>();
@@ -276,7 +279,7 @@ public class FastMOTD {
               protocolDescriptions.getOrDefault(key, nonNullDefaultDescriptions),
               protocolIcons.getOrDefault(key, nonNullDefaultFavicons),
               protocolInformation.getOrDefault(key, nonNullDefaultInformation));
-      motdGenerator.generate();
+      motdGenerator.generate(EnumSet.range(MOTDHolderType.MINECRAFT_1_7, MOTDHolderType.MINECRAFT_1_16));
       dest.add(motdGenerator);
       identical.forEach(p -> destPointers.put(p, idx));
     });
@@ -284,7 +287,7 @@ public class FastMOTD {
     domainMotd.forEach((domain, motdNode) -> {
       MOTDGenerator motdGenerator = new MOTDGenerator(this, serializer, versionName,
               motdNode.DESCRIPTION, motdNode.FAVICON, motdNode.INFORMATION);
-      motdGenerator.generate();
+      motdGenerator.generate(EnumSet.range(MOTDHolderType.MINECRAFT_1_6, MOTDHolderType.MINECRAFT_1_16));
       domainDest.put(domain, motdGenerator);
     });
   }
@@ -353,6 +356,14 @@ public class FastMOTD {
     return max;
   }
 
+  public ByteBuf getNext(LegacyMinecraftPingVersion version, String serverAddress) {
+    if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
+      return this.domainMaintenanceMOTD.getOrDefault(serverAddress, this.maintenanceMOTDGenerators.get(0)).getNext(version);
+    } else {
+      return this.domainMOTD.getOrDefault(serverAddress, this.motdGenerators.get(0)).getNext(version);
+    }
+  }
+
   public ByteBuf getNext(ProtocolVersion version, String serverAddress) {
     if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
       return this.domainMaintenanceMOTD.getOrDefault(serverAddress, this.maintenanceMOTDGenerators.get(
@@ -378,7 +389,7 @@ public class FastMOTD {
   }
 
   public void inject(MinecraftConnection connection, ChannelPipeline pipeline) {
-    this.preparedPacketFactory.inject(DummyPlayer.INSTANCE, connection, pipeline);
+    this.loginPreparedPacketFactory.inject(DummyPlayer.INSTANCE, connection, pipeline);
   }
 
   public boolean checkKickWhitelist(InetAddress inetAddress) {

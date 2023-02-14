@@ -19,6 +19,7 @@ package net.elytrium.fastmotd.utils;
 
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.proxy.server.ServerPing;
+import com.velocitypowered.proxy.protocol.packet.legacyping.LegacyMinecraftPingVersion;
 import io.netty.buffer.ByteBuf;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -38,6 +40,7 @@ import javax.imageio.stream.ImageOutputStream;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
 import net.elytrium.fastmotd.holder.MOTDHolder;
+import net.elytrium.fastmotd.holder.MOTDHolderType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 
@@ -53,7 +56,7 @@ public class MOTDGenerator {
   private final MOTDHolder[] holders;
 
   public MOTDGenerator(FastMOTD plugin, ComponentSerializer<Component, Component, String> serializer,
-                       String versionName, List<String> descriptions, List<String> favicons, List<String> information) {
+      String versionName, List<String> descriptions, List<String> favicons, List<String> information) {
     this.plugin = plugin;
     this.serializer = serializer;
     this.versionName = versionName;
@@ -64,29 +67,30 @@ public class MOTDGenerator {
     this.holders = new MOTDHolder[this.holdersAmount];
   }
 
-  public void generate() {
+  public void generate(Set<MOTDHolderType> types) {
     int faviconsSize = this.favicons.size();
 
     if (faviconsSize == 0) {
-      this.generate(0, null);
+      this.generate(types, 0, null);
     }
 
     for (int i = 0; i < faviconsSize; i++) {
       String faviconLocation = this.favicons.get(i);
       try {
         String base64Favicon = this.getFavicon(Paths.get(faviconLocation));
-        this.generate(i, base64Favicon);
+        this.generate(types, i, base64Favicon);
       } catch (IOException e) {
         this.plugin.getLogger().warn("Failed to load favicon {}. Ensure that the file exists or modify config.yml", faviconLocation);
-        this.generate(i, null);
+        this.generate(types, i, null);
       }
     }
   }
 
-  private void generate(int i, String favicon) {
+  private void generate(Set<MOTDHolderType> types, int i, String favicon) {
     for (int j = 0, descriptionsSize = this.descriptions.size(); j < descriptionsSize; j++) {
       String description = this.descriptions.get(j);
-      this.holders[i * descriptionsSize + j] = new MOTDHolder(this.serializer, this.versionName, description, favicon, this.information);
+      this.holders[i * descriptionsSize + j] = new MOTDHolder(this.plugin, types, this.serializer,
+          this.versionName, this.serializer.deserialize(description), favicon, this.information);
     }
   }
 
@@ -124,6 +128,10 @@ public class MOTDGenerator {
     for (MOTDHolder holder : this.holders) {
       holder.replaceOnline(max, online);
     }
+  }
+
+  public ByteBuf getNext(LegacyMinecraftPingVersion version) {
+    return this.holders[ThreadLocalRandom.current().nextInt(this.holdersAmount)].getByteBuf(version);
   }
 
   public ByteBuf getNext(ProtocolVersion version, boolean replaceProtocol) {

@@ -25,6 +25,7 @@ import com.velocitypowered.proxy.protocol.MinecraftPacket;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
 import com.velocitypowered.proxy.protocol.packet.Handshake;
+import com.velocitypowered.proxy.protocol.packet.LegacyDisconnect;
 import com.velocitypowered.proxy.protocol.packet.LegacyHandshake;
 import com.velocitypowered.proxy.protocol.packet.LegacyPing;
 import com.velocitypowered.proxy.protocol.packet.StatusPing;
@@ -35,6 +36,8 @@ import io.netty.channel.Channel;
 import java.net.InetSocketAddress;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
@@ -42,6 +45,10 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
   private final MinecraftConnection connection;
   private final Channel channel;
   private final HandshakeSessionHandler original;
+  private final LegacyDisconnect legacyDisconnect = LegacyDisconnect.from(Component.text(
+      "Your client is extremely old. Please update to a newer version of Minecraft.",
+      NamedTextColor.RED)
+  );
   private ProtocolVersion protocolVersion;
   private String serverAddress;
 
@@ -55,13 +62,19 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
   @Override
   public boolean handle(LegacyPing packet) {
-    this.connection.close();
+    this.channel.pipeline().remove(Connections.FRAME_ENCODER);
+    InetSocketAddress address = packet.getVhost();
+    if (address != null) {
+      this.serverAddress = address.getHostString() + ":" + address.getPort();
+    }
+
+    this.connection.closeWith(this.plugin.getNext(packet.getVersion(), this.serverAddress));
     return true;
   }
 
   @Override
   public boolean handle(LegacyHandshake packet) {
-    this.connection.close();
+    this.connection.closeWith(this.legacyDisconnect);
     return true;
   }
 
