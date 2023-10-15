@@ -67,6 +67,7 @@ public class ServerChannelInitializerHook extends ChannelInitializer<Channel> {
     }
 
     MinecraftConnection connection = (MinecraftConnection) ch.pipeline().get(Connections.HANDLER);
-    connection.setSessionHandler(new HandshakeSessionHandlerHook(this.plugin, connection, ch, (HandshakeSessionHandler) connection.getSessionHandler()));
+    connection.setActiveSessionHandler(connection.getState(), new HandshakeSessionHandlerHook(
+            this.plugin, connection, ch, (HandshakeSessionHandler) connection.getActiveSessionHandler()));
   }
 }
