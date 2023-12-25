@@ -43,7 +43,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
-import java.io.File;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -58,6 +57,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import net.elytrium.commons.utils.reflection.ReflectionException;
+import net.elytrium.commons.utils.updates.UpdatesChecker;
 import net.elytrium.fastmotd.command.MaintenanceCommand;
 import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.dummy.DummyPlayer;
@@ -67,8 +68,6 @@ import net.elytrium.fastmotd.listener.DisconnectOnZeroPlayersListener;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.fastprepare.PreparedPacket;
 import net.elytrium.fastprepare.PreparedPacketFactory;
-import net.elytrium.java.commons.reflection.ReflectionException;
-import net.elytrium.java.commons.updates.UpdatesChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 import org.bstats.velocity.Metrics;
@@ -92,7 +91,7 @@ public class FastMOTD {
   private final Logger logger;
   private final VelocityServer server;
   private final Metrics.Factory metricsFactory;
-  private final File configFile;
+  private final Path configPath;
   private final List<MOTDGenerator> motdGenerators = new ArrayList<>();
   private final List<MOTDGenerator> maintenanceMOTDGenerators = new ArrayList<>();
   private final Int2IntMap protocolPointers = new Int2IntOpenHashMap();
@@ -121,7 +120,7 @@ public class FastMOTD {
     this.logger = logger;
     this.server = (VelocityServer) server;
     this.metricsFactory = metricsFactory;
-    this.configFile = dataDirectory.resolve("config.yml").toFile();
+    this.configPath = dataDirectory.resolve("config.yml");
   }
 
   @Subscribe
@@ -137,13 +136,13 @@ public class FastMOTD {
     }
 
     this.preparedPacketFactory =
-        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false);
+        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false, true);
 
     this.reload();
   }
 
   public void reload() {
-    Settings.IMP.reload(this.configFile, Settings.IMP.PREFIX);
+    Settings.IMP.reload(this.configPath);
 
     if (!UpdatesChecker.checkVersionByURL("https://raw.githubusercontent.com/Elytrium/FastMOTD/master/VERSION", Settings.IMP.VERSION)) {
       this.logger.error("****************************************");
@@ -199,7 +198,7 @@ public class FastMOTD {
     Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE);
     this.kickReason = this.preparedPacketFactory
         .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
-        .prepare(version -> Disconnect.create(kickReasonComponent, version))
+        .prepare(version -> Disconnect.create(kickReasonComponent, version, true))
         .build();
 
     this.kickWhitelist = Settings.IMP.MAINTENANCE.KICK_WHITELIST.stream().map((String host) -> {
@@ -339,16 +338,10 @@ public class FastMOTD {
   private int getMax(int online) {
     int max;
     MaxCountType type = Settings.IMP.MAIN.MAX_COUNT_TYPE;
-    switch (type) {
-      case ADD_SOME:
-        max = online + Settings.IMP.MAIN.MAX_COUNT;
-        break;
-      case VARIABLE:
-        max = Settings.IMP.MAIN.MAX_COUNT;
-        break;
-      default:
-        throw new IllegalStateException("Unexpected value: " + type);
-    }
+    max = switch (type) {
+      case ADD_SOME -> online + Settings.IMP.MAIN.MAX_COUNT;
+      case VARIABLE -> Settings.IMP.MAIN.MAX_COUNT;
+    };
 
     return max;
   }
@@ -397,8 +390,8 @@ public class FastMOTD {
     return this.kickReason;
   }
 
-  public File getConfigFile() {
-    return this.configFile;
+  public Path getConfigPath() {
+    return this.configPath;
   }
 
   public enum MaxCountType {

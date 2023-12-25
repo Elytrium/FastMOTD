@@ -31,6 +31,7 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.api.util.ModInfo;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -115,11 +116,6 @@ public class DummyPlayer implements Player {
   }
 
   @Override
-  public void clearHeaderAndFooter() {
-
-  }
-
-  @Override
   public void clearPlayerListHeaderAndFooter() {
 
   }
@@ -171,6 +167,16 @@ public class DummyPlayer implements Player {
 
   @Override
   public @Nullable ResourcePackInfo getPendingResourcePack() {
+    return null;
+  }
+
+  @Override
+  public Collection<ResourcePackInfo> getAppliedResourcePacks() {
+    return null;
+  }
+
+  @Override
+  public Collection<ResourcePackInfo> getPendingResourcePacks() {
     return null;
   }
 

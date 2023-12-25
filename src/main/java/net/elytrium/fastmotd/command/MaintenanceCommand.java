@@ -69,7 +69,7 @@ public class MaintenanceCommand implements SimpleCommand {
         return;
     }
 
-    Settings.IMP.save(this.plugin.getConfigFile());
+    Settings.IMP.save(this.plugin.getConfigPath());
   }
 
   @Override

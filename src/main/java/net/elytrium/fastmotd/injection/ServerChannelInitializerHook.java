@@ -26,9 +26,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.net.InetSocketAddress;
+import net.elytrium.commons.utils.reflection.ReflectionException;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
-import net.elytrium.java.commons.reflection.ReflectionException;
 import org.jetbrains.annotations.NotNull;
 
 public class ServerChannelInitializerHook extends ChannelInitializer<Channel> {
