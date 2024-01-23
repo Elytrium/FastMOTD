@@ -24,11 +24,11 @@ import com.velocitypowered.proxy.network.Connections;
 import com.velocitypowered.proxy.protocol.MinecraftPacket;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
-import com.velocitypowered.proxy.protocol.packet.Handshake;
-import com.velocitypowered.proxy.protocol.packet.LegacyHandshake;
-import com.velocitypowered.proxy.protocol.packet.LegacyPing;
-import com.velocitypowered.proxy.protocol.packet.StatusPing;
-import com.velocitypowered.proxy.protocol.packet.StatusRequest;
+import com.velocitypowered.proxy.protocol.packet.HandshakePacket;
+import com.velocitypowered.proxy.protocol.packet.LegacyHandshakePacket;
+import com.velocitypowered.proxy.protocol.packet.LegacyPingPacket;
+import com.velocitypowered.proxy.protocol.packet.StatusPingPacket;
+import com.velocitypowered.proxy.protocol.packet.StatusRequestPacket;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -54,19 +54,19 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
   }
 
   @Override
-  public boolean handle(LegacyPing packet) {
+  public boolean handle(LegacyPingPacket packet) {
     this.connection.close();
     return true;
   }
 
   @Override
-  public boolean handle(LegacyHandshake packet) {
+  public boolean handle(LegacyHandshakePacket packet) {
     this.connection.close();
     return true;
   }
 
   @Override
-  public boolean handle(Handshake handshake) {
+  public boolean handle(HandshakePacket handshake) {
     if (handshake.getNextStatus() == StateRegistry.STATUS_ID) {
       this.protocolVersion = handshake.getProtocolVersion();
       this.serverAddress = handshake.getServerAddress() + ":" + handshake.getPort();
@@ -91,7 +91,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
   @Override
   public void handleGeneric(MinecraftPacket packet) {
-    if (packet instanceof StatusPing) {
+    if (packet instanceof StatusPingPacket) {
       if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
         this.connection.close();
         return;
@@ -103,7 +103,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
       packet.encode(buf, null, null);
       this.channel.writeAndFlush(buf);
       this.connection.close();
-    } else if (packet instanceof StatusRequest) {
+    } else if (packet instanceof StatusRequestPacket) {
       this.channel.writeAndFlush(this.plugin.getNext(this.protocolVersion, this.serverAddress));
     } else {
       this.original.handleGeneric(packet);
