@@ -198,7 +198,7 @@ public class FastMOTD {
     Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE);
     this.kickReason = this.preparedPacketFactory
         .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
-        .prepare(version -> DisconnectPacket.create(kickReasonComponent, version, true))
+        .prepare(version -> DisconnectPacket.create(kickReasonComponent, version, StateRegistry.LOGIN))
         .build();
 
     this.kickWhitelist = Settings.IMP.MAINTENANCE.KICK_WHITELIST.stream().map((String host) -> {
