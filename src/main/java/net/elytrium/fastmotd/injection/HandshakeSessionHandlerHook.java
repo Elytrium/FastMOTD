@@ -67,6 +67,10 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
   @Override
   public boolean handle(HandshakePacket handshake) {
+    if (handshake.getProtocolVersion() == null || handshake.getProtocolVersion() == ProtocolVersion.UNKNOWN) {
+      handshake.setProtocolVersion(ProtocolVersion.MAXIMUM_VERSION);
+    }
+
     if (handshake.getNextStatus() == StateRegistry.STATUS_ID) {
       this.protocolVersion = handshake.getProtocolVersion();
       this.serverAddress = handshake.getServerAddress() + ":" + handshake.getPort();
