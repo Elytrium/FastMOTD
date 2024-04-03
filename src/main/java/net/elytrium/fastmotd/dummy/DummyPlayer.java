@@ -17,6 +17,7 @@
 
 package net.elytrium.fastmotd.dummy;
 
+import com.velocitypowered.api.network.ProtocolState;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.permission.Tristate;
 import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
@@ -172,12 +173,12 @@ public class DummyPlayer implements Player {
 
   @Override
   public Collection<ResourcePackInfo> getAppliedResourcePacks() {
-    return null;
+    throw new IllegalStateException();
   }
 
   @Override
   public Collection<ResourcePackInfo> getPendingResourcePacks() {
-    return null;
+    throw new IllegalStateException();
   }
 
   @Override
@@ -227,6 +228,11 @@ public class DummyPlayer implements Player {
 
   @Override
   public ProtocolVersion getProtocolVersion() {
+    return null;
+  }
+
+  @Override
+  public ProtocolState getProtocolState() {
     return null;
   }
 
