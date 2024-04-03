@@ -74,11 +74,11 @@ public class Settings extends YamlSerializable {
         @CommentValue("See https://wiki.vg/Protocol_version_numbers"),
     })
     public static class VERSIONS {
-      @Comment(@CommentValue("null = disabled"))
+      @Comment(@CommentValue("{} = disabled"))
       public Map<String, List<String>> DESCRIPTIONS = Map.of("757-759", List.of("<bold><red>FastMOTD</red></bold>{NL} -> Supports separate MOTDs for different versions."));
-      @Comment(@CommentValue("null = disabled"))
+      @Comment(@CommentValue("{} = disabled"))
       public Map<String, List<String>> FAVICONS = Map.of("756-758", List.of("second-server-icon.png"));
-      @Comment(@CommentValue("null = disabled"))
+      @Comment(@CommentValue("{} = disabled"))
       public Map<String, List<String>> INFORMATION = Map.of("757-758", List.of("Your", "protocol", "version", "is 757 or 758"));
     }
 
@@ -109,11 +109,11 @@ public class Settings extends YamlSerializable {
         @CommentValue("See https://wiki.vg/Protocol_version_numbers"),
     })
     public static class VERSIONS {
-      @Comment(@CommentValue("null = disabled"))
+      @Comment(@CommentValue("{} = disabled"))
       public Map<String, List<String>> DESCRIPTIONS = Map.of("757-759", List.of("<bold><red>FastMOTD</red></bold>{NL} -> Really Fast."));
-      @Comment(@CommentValue("null = disabled"))
+      @Comment(@CommentValue("{} = disabled"))
       public Map<String, List<String>> FAVICONS = Map.of("758-758", List.of("second-server-icon.png"));
-      @Comment(@CommentValue("null = disabled"))
+      @Comment(@CommentValue("{} = disabled"))
       public Map<String, List<String>> INFORMATION = Map.of("756-759", List.of("Server is", "under", "maintenance"));
     }
 
