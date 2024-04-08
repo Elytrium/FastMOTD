@@ -67,11 +67,19 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
   @Override
   public boolean handle(HandshakePacket handshake) {
-    if (handshake.getProtocolVersion() == null || handshake.getProtocolVersion() == ProtocolVersion.UNKNOWN) {
-      handshake.setProtocolVersion(ProtocolVersion.MAXIMUM_VERSION);
-    }
-
     if (handshake.getNextStatus() == StateRegistry.STATUS_ID) {
+      if (handshake.getProtocolVersion() == null || handshake.getProtocolVersion() == ProtocolVersion.UNKNOWN) {
+        handshake.setProtocolVersion(ProtocolVersion.MAXIMUM_VERSION);
+
+        if (Settings.IMP.MAIN.LOG_PINGS) {
+          this.plugin.getLogger().info(
+              "Unknown protocol version detected from {}, replaced with version {}",
+              this.connection.getRemoteAddress(),
+              ProtocolVersion.MAXIMUM_VERSION
+          );
+        }
+      }
+
       this.protocolVersion = handshake.getProtocolVersion();
       this.serverAddress = handshake.getServerAddress() + ":" + handshake.getPort();
       this.channel.pipeline().remove(Connections.FRAME_ENCODER);
