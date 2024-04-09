@@ -25,6 +25,7 @@ import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.crypto.IdentifiedKey;
 import com.velocitypowered.api.proxy.messages.ChannelIdentifier;
+import com.velocitypowered.api.proxy.messages.PluginMessageEncoder;
 import com.velocitypowered.api.proxy.player.PlayerSettings;
 import com.velocitypowered.api.proxy.player.ResourcePackInfo;
 import com.velocitypowered.api.proxy.player.TabList;
@@ -183,6 +184,11 @@ public class DummyPlayer implements Player {
 
   @Override
   public boolean sendPluginMessage(ChannelIdentifier identifier, byte[] data) {
+    return false;
+  }
+
+  @Override
+  public boolean sendPluginMessage(ChannelIdentifier identifier, PluginMessageEncoder dataEncoder) {
     return false;
   }
 
