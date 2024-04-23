@@ -213,6 +213,11 @@ public class DummyPlayer implements Player {
   }
 
   @Override
+  public void transferToHost(@NotNull InetSocketAddress inetSocketAddress) {
+
+  }
+
+  @Override
   public Tristate getPermissionValue(String permission) {
     return null;
   }
