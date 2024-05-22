@@ -53,6 +53,20 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
     this.original = original;
   }
 
+  private static String cleanHost(String hostname) {
+    String cleaned = hostname;
+    int zeroIdx = cleaned.indexOf(0);
+    if (zeroIdx > -1) {
+      cleaned = hostname.substring(0, zeroIdx);
+    }
+
+    if (!cleaned.isEmpty() && cleaned.charAt(cleaned.length() - 1) == '.') {
+      cleaned = cleaned.substring(0, cleaned.length() - 1);
+    }
+
+    return cleaned;
+  }
+
   @Override
   public boolean handle(LegacyPingPacket packet) {
     this.connection.close();
@@ -81,7 +95,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
       }
 
       this.protocolVersion = handshake.getProtocolVersion();
-      this.serverAddress = handshake.getServerAddress() + ":" + handshake.getPort();
+      this.serverAddress = cleanHost(handshake.getServerAddress()) + ":" + handshake.getPort();
       this.channel.pipeline().remove(Connections.FRAME_ENCODER);
       this.channel.pipeline().get(MinecraftDecoder.class).setState(StateRegistry.STATUS);
 
