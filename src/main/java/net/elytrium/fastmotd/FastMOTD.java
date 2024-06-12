@@ -144,14 +144,16 @@ public class FastMOTD {
   public void reload() {
     Settings.IMP.reload(this.configPath);
 
-    this.server.getScheduler().buildTask(this, () -> {
-      if (!UpdatesChecker.checkVersionByURL("https://raw.githubusercontent.com/Elytrium/FastMOTD/master/VERSION", Settings.IMP.VERSION)) {
-        this.logger.error("****************************************");
-        this.logger.warn("The new FastMOTD update was found, please update.");
-        this.logger.error("https://github.com/Elytrium/FastMOTD/releases/");
-        this.logger.error("****************************************");
-      }
-    }).schedule();
+    if (Settings.IMP.MAIN.ENABLE_UPDATES) {
+      this.server.getScheduler().buildTask(this, () -> {
+        if (!UpdatesChecker.checkVersionByURL("https://raw.githubusercontent.com/Elytrium/FastMOTD/master/VERSION", Settings.IMP.VERSION)) {
+          this.logger.error("****************************************");
+          this.logger.warn("The new FastMOTD update was found, please update.");
+          this.logger.error("https://github.com/Elytrium/FastMOTD/releases/");
+          this.logger.error("****************************************");
+        }
+      }).schedule();
+    }
     this.metricsFactory.make(this, 15640);
 
     ComponentSerializer<Component, Component, String> serializer = Settings.IMP.SERIALIZER.getSerializer();

@@ -45,6 +45,7 @@ public class Settings extends YamlSerializable {
   public MAIN MAIN = new MAIN();
 
   public static class MAIN {
+    public boolean ENABLE_UPDATES = true;
     public String VERSION_NAME = "Elytrium";
     public List<String> DESCRIPTIONS = List.of("<bold><red>FastMOTD</red></bold>{NL} -> Really fast.");
     public List<String> FAVICONS = List.of("server-icon.png");
