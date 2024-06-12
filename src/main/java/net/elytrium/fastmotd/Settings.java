@@ -67,6 +67,12 @@ public class Settings extends YamlSerializable {
     })
     public double PNG_QUALITY = 0.0;
     public boolean LOG_PINGS = false;
+    public boolean LOG_IMPROPER_PINGS = false;
+    @Comment({
+        @CommentValue("Enabling this will allow non-vanilla ping packets sequence,"),
+        @CommentValue("but will open your server to nullping attacks")
+    })
+    public boolean ALLOW_IMPROPER_PINGS = false;
 
     public VERSIONS VERSIONS = new VERSIONS();
 

@@ -29,6 +29,7 @@ import com.velocitypowered.proxy.protocol.packet.LegacyHandshakePacket;
 import com.velocitypowered.proxy.protocol.packet.LegacyPingPacket;
 import com.velocitypowered.proxy.protocol.packet.StatusPingPacket;
 import com.velocitypowered.proxy.protocol.packet.StatusRequestPacket;
+import com.velocitypowered.proxy.util.except.QuietRuntimeException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -38,12 +39,20 @@ import net.elytrium.fastmotd.Settings;
 
 public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
+  private static final QuietRuntimeException UNEXPECTED_STATE =
+      new QuietRuntimeException("unexpected state");
+
+  private enum State {
+    REQUEST, PING, DONE
+  }
+
   private final FastMOTD plugin;
   private final MinecraftConnection connection;
   private final Channel channel;
   private final HandshakeSessionHandler original;
   private ProtocolVersion protocolVersion;
   private String serverAddress;
+  private State state = State.REQUEST;
 
   public HandshakeSessionHandlerHook(FastMOTD plugin, MinecraftConnection connection, Channel channel, HandshakeSessionHandler original) {
     super(connection, plugin.getServer());
@@ -65,6 +74,23 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
     }
 
     return cleaned;
+  }
+
+  private void switchState(State oldState, State newState) {
+    if (Settings.IMP.MAIN.ALLOW_IMPROPER_PINGS) {
+      return;
+    }
+
+    if (this.state != oldState) {
+      if (Settings.IMP.MAIN.LOG_IMPROPER_PINGS) {
+        this.plugin.getLogger().warn("{} has failed to ping this proxy due to improper packet order: from {} to {}->{}",
+            this.connection.getRemoteAddress(), this.state, oldState, newState);
+      }
+
+      throw UNEXPECTED_STATE;
+    }
+
+    this.state = newState;
   }
 
   @Override
@@ -118,6 +144,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
   @Override
   public void handleGeneric(MinecraftPacket packet) {
     if (packet instanceof StatusPingPacket) {
+      this.switchState(State.PING, State.DONE);
       if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
         this.connection.close();
         return;
@@ -130,6 +157,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
       this.channel.writeAndFlush(buf);
       this.connection.close();
     } else if (packet instanceof StatusRequestPacket) {
+      this.switchState(State.REQUEST, State.PING);
       this.channel.writeAndFlush(this.plugin.getNext(this.protocolVersion, this.serverAddress));
     } else {
       this.original.handleGeneric(packet);
