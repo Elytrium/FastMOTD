@@ -61,7 +61,6 @@ import net.elytrium.commons.utils.reflection.ReflectionException;
 import net.elytrium.commons.utils.updates.UpdatesChecker;
 import net.elytrium.fastmotd.command.MaintenanceCommand;
 import net.elytrium.fastmotd.command.ReloadCommand;
-import net.elytrium.fastmotd.dummy.DummyPlayer;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.listener.CompatPingListener;
 import net.elytrium.fastmotd.listener.DisconnectOnZeroPlayersListener;
@@ -375,7 +374,7 @@ public class FastMOTD {
   }
 
   public void inject(MinecraftConnection connection, ChannelPipeline pipeline) {
-    this.preparedPacketFactory.inject(DummyPlayer.INSTANCE, connection, pipeline);
+    this.preparedPacketFactory.inject(false, connection, pipeline);
   }
 
   public boolean checkKickWhitelist(InetAddress inetAddress) {
