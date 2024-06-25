@@ -198,7 +198,7 @@ public class FastMOTD {
       this.kickReason.release();
     }
 
-    Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE);
+    Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE.replace("{NL}", "\n"));
     this.kickReason = this.preparedPacketFactory
         .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
         .prepare(version -> DisconnectPacket.create(kickReasonComponent, version, StateRegistry.LOGIN))
