@@ -48,7 +48,7 @@ public class MOTDBytesHolder {
     this.inputSerializer = inputSerializer;
     ServerPing.Builder compatServerPingBuilder = ServerPing.builder();
 
-    StringBuilder motd = new StringBuilder("{\"players\":{\"max\":    0,\"online\":    1,\"sample\":[");
+    StringBuilder motd = new StringBuilder("{\"players\":{\"max\":       0,\"online\":       1,\"sample\":[");
 
     compatServerPingBuilder.maximumPlayers(0);
     compatServerPingBuilder.onlinePlayers(1);
@@ -98,8 +98,8 @@ public class MOTDBytesHolder {
     int lengthOfLength = ProtocolUtils.varIntBytes(length);
     varIntLength += lengthOfLength;
 
-    this.maxOnlineDigit = Bytes.indexOf(bytes, "    0".getBytes(StandardCharsets.UTF_8)) + 1 + varIntLength;
-    this.onlineDigit = Bytes.indexOf(bytes, "    1".getBytes(StandardCharsets.UTF_8)) + 1 + varIntLength;
+    this.maxOnlineDigit = Bytes.indexOf(bytes, "       0".getBytes(StandardCharsets.UTF_8)) + 1 + varIntLength;
+    this.onlineDigit = Bytes.indexOf(bytes, "       1".getBytes(StandardCharsets.UTF_8)) + 1 + varIntLength;
     this.protocolDigit = Bytes.indexOf(bytes, "protocol\":        1}".getBytes(StandardCharsets.UTF_8)) + 19 + varIntLength;
 
     this.byteBuf = Unpooled.directBuffer(length + lengthOfLength);
@@ -127,11 +127,14 @@ public class MOTDBytesHolder {
   }
 
   private void localReplaceOnline(int digit, int to) {
-    this.byteBuf.setByte(digit, to >= 10000 ? (to / 10000 % 10) + '0' : ' ');
-    this.byteBuf.setByte(digit + 1, to >= 1000 ? (to / 1000 % 10) + '0' : ' ');
-    this.byteBuf.setByte(digit + 2, to >= 100 ? (to / 100 % 10) + '0' : ' ');
-    this.byteBuf.setByte(digit + 3, to >= 10 ? (to / 10 % 10) + '0' : ' ');
-    this.byteBuf.setByte(digit + 4, (to % 10) + '0');
+    this.byteBuf.setByte(digit + 0, to >= 10000000 ? (to / 10000000 % 10) + '0' : ' ');
+    this.byteBuf.setByte(digit + 1, to >= 1000000 ? (to / 1000000 % 10) + '0' : ' ');
+    this.byteBuf.setByte(digit + 2, to >= 100000 ? (to / 100000 % 10) + '0' : ' ');
+    this.byteBuf.setByte(digit + 3, to >= 10000 ? (to / 10000 % 10) + '0' : ' ');
+    this.byteBuf.setByte(digit + 4, to >= 1000 ? (to / 1000 % 10) + '0' : ' ');
+    this.byteBuf.setByte(digit + 5, to >= 100 ? (to / 100 % 10) + '0' : ' ');
+    this.byteBuf.setByte(digit + 6, to >= 10 ? (to / 10 % 10) + '0' : ' ');
+    this.byteBuf.setByte(digit + 7, (to % 10) + '0');
   }
 
   public ServerPing getCompatPingInfo(ProtocolVersion version, boolean replaceProtocol) {
