@@ -66,6 +66,8 @@ public class Settings extends YamlSerializable {
         @CommentValue("Set -1 to disable PNG recompression")
     })
     public double PNG_QUALITY = 0.0;
+    @Comment(@CommentValue("Write packets outside of Netty pipeline to avoid plugins that modify packets (e.g. PacketEvents)"))
+    public boolean DIRECT_WRITE = false;
     public boolean LOG_PINGS = false;
     public boolean LOG_IMPROPER_PINGS = false;
     @Comment({

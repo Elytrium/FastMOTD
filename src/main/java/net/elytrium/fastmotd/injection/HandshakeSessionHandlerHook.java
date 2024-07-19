@@ -33,6 +33,7 @@ import com.velocitypowered.proxy.util.except.QuietRuntimeException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelOutboundBuffer;
 import java.net.InetSocketAddress;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
@@ -91,6 +92,26 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
     }
 
     this.state = newState;
+  }
+
+  private void sendPacket(ByteBuf packet, boolean constant) {
+    if (Settings.IMP.MAIN.DIRECT_WRITE) {
+      ChannelOutboundBuffer buffer = this.channel.unsafe().outboundBuffer();
+      if (buffer == null) {
+        packet.release(); // connection was closed already, no need to send the packet.
+      } else {
+        // .slice() constant packet to ensure that Netty do not modify its readerIndex
+        if (constant) {
+          packet = packet.slice();
+        }
+
+        // Send the packet
+        buffer.addMessage(packet, packet.readableBytes(), this.channel.voidPromise());
+        this.channel.flush();
+      }
+    } else {
+      this.channel.writeAndFlush(packet);
+    }
   }
 
   @Override
@@ -154,11 +175,11 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
       buf.writeByte(9);
       buf.writeByte(1);
       packet.encode(buf, null, null);
-      this.channel.writeAndFlush(buf);
+      this.sendPacket(buf, false);
       this.connection.close();
     } else if (packet instanceof StatusRequestPacket) {
       this.switchState(State.REQUEST, State.PING);
-      this.channel.writeAndFlush(this.plugin.getNext(this.protocolVersion, this.serverAddress));
+      this.sendPacket(this.plugin.getNext(this.protocolVersion, this.serverAddress), true);
     } else {
       this.original.handleGeneric(packet);
     }
