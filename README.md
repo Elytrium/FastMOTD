@@ -22,11 +22,11 @@ Test server: [``ely.su``](https://hotmc.ru/minecraft-server-203216)
 
 Intel Core i9-9700K, DDR4 (a server that is not running any programs):
 
-| Plugin | Pings per second count |
-| - | - |
-| FastMOTD | 1 700 000 - 2 000 000 pings per second |
-| Without MOTD plugins | 900 000 - 1 100 000 pings per second |
-| MiniMOTD | 480 000 - 580 000 pings per second |
+| Plugin               | Pings per second count                 |
+|----------------------|----------------------------------------|
+| FastMOTD             | 1 700 000 - 2 000 000 pings per second |
+| Without MOTD plugins | 900 000 - 1 100 000 pings per second   |
+| MiniMOTD             | 480 000 - 580 000 pings per second     |
 
 Intel Xeon E3-1270, DDR3 (a PC with several applications running):
 | Plugin | Pings per second count |
@@ -34,3 +34,11 @@ Intel Xeon E3-1270, DDR3 (a PC with several applications running):
 | FastMOTD | 840 000 - 1 000 000 pings per second |
 | Without MOTD plugins | 330 000 - 430 000 pings per second |
 | MiniMOTD | 150 000 - 200 000 pings per second |
+
+## Commands and permissions
+
+### Admin
+
+- ***fastmotd.info* | /fastmotd info** - The command to get general information about the current state of the plugin
+- ***fastmotd.reload* | /fastmotd reload** - Reload Plugin Command
+- ***fastmotd.maintenance* | /maintenance** - Maintenance Mode Setting Command

@@ -19,12 +19,14 @@ package net.elytrium.fastmotd;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.EventManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.ServerPing;
 import com.velocitypowered.api.scheduler.ScheduledTask;
@@ -59,8 +61,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import net.elytrium.commons.utils.reflection.ReflectionException;
 import net.elytrium.commons.utils.updates.UpdatesChecker;
+import net.elytrium.fastmotd.command.FastmotdCommand;
 import net.elytrium.fastmotd.command.MaintenanceCommand;
-import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.listener.CompatPingListener;
 import net.elytrium.fastmotd.listener.DisconnectOnZeroPlayersListener;
@@ -99,6 +101,9 @@ public class FastMOTD {
   private final Map<String, MOTDGenerator> domainMaintenanceMOTD = new HashMap<>();
   private PreparedPacketFactory preparedPacketFactory;
   private ScheduledTask updater;
+  private CommandMeta fastmotdCommandMeta;
+  private CommandMeta maintenanceCommandMeta;
+  private Component kickReasonComponent;
   private PreparedPacket kickReason;
   private Set<InetAddress> kickWhitelist;
 
@@ -137,6 +142,10 @@ public class FastMOTD {
     this.preparedPacketFactory =
         new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false, true);
 
+    final CommandManager commandManager = this.server.getCommandManager();
+    this.fastmotdCommandMeta = commandManager.metaBuilder("fastmotd").plugin(this).build();
+    this.maintenanceCommandMeta = commandManager.metaBuilder("maintenance").plugin(this).build();
+
     this.reload();
   }
 
@@ -174,13 +183,11 @@ public class FastMOTD {
     this.maintenanceMOTDGenerators.clear();
     this.domainMaintenanceMOTD.clear();
 
-    CommandManager commandManager = this.server.getCommandManager();
-    commandManager.unregister("fastmotdreload");
-    commandManager.unregister("maintenance");
-
-    commandManager.register("fastmotdreload", new ReloadCommand(this));
-    commandManager.register("maintenance",
-        new MaintenanceCommand(this, serializer.deserialize(Settings.IMP.MAINTENANCE.COMMAND.USAGE)));
+    final CommandManager commandManager = this.server.getCommandManager();
+    commandManager.unregister(this.fastmotdCommandMeta);
+    commandManager.unregister(this.maintenanceCommandMeta);
+    commandManager.register(this.fastmotdCommandMeta, FastmotdCommand.createBrigadierCommand(this, serializer));
+    commandManager.register(this.maintenanceCommandMeta, MaintenanceCommand.createBrigadierCommand(this, serializer));
 
     EventManager eventManager = this.server.getEventManager();
     eventManager.unregisterListeners(this);
@@ -198,10 +205,10 @@ public class FastMOTD {
       this.kickReason.release();
     }
 
-    Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE.replace("{NL}", "\n"));
+    this.kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE.replace("{NL}", "\n"));
     this.kickReason = this.preparedPacketFactory
         .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
-        .prepare(version -> DisconnectPacket.create(kickReasonComponent, version, StateRegistry.LOGIN))
+        .prepare(version -> DisconnectPacket.create(this.kickReasonComponent, version, StateRegistry.LOGIN))
         .build();
 
     this.kickWhitelist = Settings.IMP.MAINTENANCE.KICK_WHITELIST.stream().map((String host) -> {
@@ -211,6 +218,10 @@ public class FastMOTD {
         throw new IllegalArgumentException(e);
       }
     }).collect(Collectors.toSet());
+
+    if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
+      this.kickNotWhitelist();
+    }
 
     this.generateMOTDGenerators(serializer, Settings.IMP.MAIN.VERSION_NAME, Settings.IMP.MAIN.DESCRIPTIONS,
             Settings.IMP.MAIN.FAVICONS, Settings.IMP.MAIN.INFORMATION, this.motdGenerators, this.protocolPointers,
@@ -377,8 +388,23 @@ public class FastMOTD {
     this.preparedPacketFactory.inject(false, connection, pipeline);
   }
 
+  public void kickNotWhitelist() {
+    if (!Settings.IMP.MAINTENANCE.SHOULD_KICK_ONLINE) {
+      return;
+    }
+    for (Player player : this.server.getAllPlayers()) {
+      if (!this.kickWhitelist.contains(player.getRemoteAddress().getAddress())) {
+        player.disconnect(this.kickReasonComponent);
+      }
+    }
+  }
+
   public boolean checkKickWhitelist(InetAddress inetAddress) {
     return this.kickWhitelist.contains(inetAddress);
+  }
+
+  public Set<InetAddress> getKickWhitelist() {
+    return this.kickWhitelist;
   }
 
   public VelocityServer getServer() {
