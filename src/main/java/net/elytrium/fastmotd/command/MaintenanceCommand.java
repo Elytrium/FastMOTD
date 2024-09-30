@@ -27,12 +27,11 @@ import com.velocitypowered.api.proxy.Player;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
+import net.elytrium.serializer.placeholders.Placeholders;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 
 public class MaintenanceCommand {
@@ -44,16 +43,16 @@ public class MaintenanceCommand {
    * @return The maintenance command.
   */
   public static BrigadierCommand createBrigadierCommand(final FastMOTD plugin, final ComponentSerializer<Component, Component, String> serializer) {
-    final String PREFIX = Settings.IMP.PREFIX + " ";
     final Component usageComponent = serializer.deserialize(String.join("\n", Settings.IMP.MAINTENANCE.MESSAGES.USAGE));
-    final Component maintenanceOnComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.ON);
-    final Component maintenanceOffComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.OFF);
-    final Component listComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.LIST);
-    final Component successfullyAddComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.SUCCESSFULLY_ADDED);
-    final Component successfullyRemoveComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.SUCCESSFULLY_REMOVED);
-    final Component invalidInputComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.INVALID_INPUT);
-    final Component alreadyInComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.ALREADY_IN);
-    final Component notInWhitelistComponent = serializer.deserialize(PREFIX + Settings.IMP.MAINTENANCE.MESSAGES.NOT_IN_WHITELIST);
+    final Component maintenanceOnComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.MESSAGES.ON);
+    final Component maintenanceOffComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.MESSAGES.OFF);
+    final String listString = Settings.IMP.MAINTENANCE.MESSAGES.LIST;
+    final String listPlayerFormat = Settings.IMP.MAINTENANCE.MESSAGES.LIST_PLAYER_FORMAT;
+    final Component successfullyAddComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.MESSAGES.SUCCESSFULLY_ADDED);
+    final Component successfullyRemoveComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.MESSAGES.SUCCESSFULLY_REMOVED);
+    final Component invalidInputComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.MESSAGES.INVALID_INPUT);
+    final Component alreadyInComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.MESSAGES.ALREADY_IN);
+    final Component notInWhitelistComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.MESSAGES.NOT_IN_WHITELIST);
 
     LiteralCommandNode<CommandSource> maintenanceNode = BrigadierCommand.literalArgumentBuilder("maintenance")
         .requires(source -> source.hasPermission("fastmotd.maintenance"))
@@ -75,7 +74,7 @@ public class MaintenanceCommand {
           .executes(context -> {
             Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED = true;
             Settings.IMP.save(plugin.getConfigPath());
-            plugin.kickNotWhitelist();
+            plugin.kickNotWhitelisted();
             context.getSource().sendMessage(maintenanceOnComponent);
             return Command.SINGLE_SUCCESS;
           })
@@ -86,7 +85,7 @@ public class MaintenanceCommand {
             Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED ^= true;
             Settings.IMP.save(plugin.getConfigPath());
             if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
-              plugin.kickNotWhitelist();
+              plugin.kickNotWhitelisted();
               context.getSource().sendMessage(maintenanceOnComponent);
             } else {
               context.getSource().sendMessage(maintenanceOffComponent);
@@ -98,22 +97,25 @@ public class MaintenanceCommand {
         .then(BrigadierCommand.literalArgumentBuilder("list")
           .then(BrigadierCommand.literalArgumentBuilder("-p")
             .executes(context -> {
-              final TextReplacementConfig playerReplacement = TextReplacementConfig.builder()
-                  .matchLiteral("{KICK_WHITELIST}")
-                  .replacement(Joiner.on(",").join(getOnlinePlayersFromWhitelist(plugin)))
-                  .build();
-              context.getSource().sendMessage(listComponent.replaceText(playerReplacement));
+              context.getSource().sendMessage(serializer.deserialize(Placeholders.replace(
+                      listString,
+                      Joiner.on(", ").join(plugin.getServer().getAllPlayers().stream()
+                              .filter(player -> plugin.checkKickWhitelist(player.getRemoteAddress().getAddress()))
+                              .map(player -> listPlayerFormat
+                                      .replace("{PLAYER}", player.getUsername())
+                                      .replace("{IP}", player.getRemoteAddress().getAddress().getHostAddress()))
+                              .collect(Collectors.toSet()))
+                      )));
               return Command.SINGLE_SUCCESS;
             })
           )
           .executes(context -> {
-            final TextReplacementConfig addressReplacement = TextReplacementConfig.builder()
-                .matchLiteral("{KICK_WHITELIST}")
-                .replacement(Joiner.on(",").join(plugin.getKickWhitelist().stream()
-                        .map(InetAddress::getHostAddress)
-                        .collect(Collectors.toList())))
-                .build();
-            context.getSource().sendMessage(listComponent.replaceText(addressReplacement));
+            context.getSource().sendMessage(serializer.deserialize(Placeholders.replace(
+                    listString,
+                    Joiner.on(", ").join(plugin.getKickWhitelist().stream()
+                            .map(InetAddress::getHostAddress)
+                            .collect(Collectors.toList()))
+            )));
             return Command.SINGLE_SUCCESS;
           })
         )
@@ -121,8 +123,12 @@ public class MaintenanceCommand {
         .then(BrigadierCommand.literalArgumentBuilder("add")
           .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.string())
             .suggests((ctx, builder) -> {
-              plugin.getServer().getAllPlayers().forEach(player -> builder.suggest(player.getUsername()));
-              builder.suggest("127.0.0.1");
+              plugin.getServer().getAllPlayers().stream()
+                        .filter(player -> !plugin.checkKickWhitelist(player.getRemoteAddress().getAddress()))
+                        .forEach(player -> {
+                          builder.suggest(player.getUsername());
+                          builder.suggest(player.getRemoteAddress().getAddress().getHostAddress());
+                        });
               return builder.buildFuture();
             })
             .executes(context -> {
@@ -152,8 +158,12 @@ public class MaintenanceCommand {
         .then(BrigadierCommand.literalArgumentBuilder("remove")
           .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.string())
             .suggests((ctx, builder) -> {
-              plugin.getServer().getAllPlayers().forEach(player -> builder.suggest(player.getUsername()));
-              plugin.getKickWhitelist().forEach(inetAddress -> builder.suggest(inetAddress.getHostAddress()));
+              plugin.getServer().getAllPlayers().stream()
+                      .filter(player -> plugin.checkKickWhitelist(player.getRemoteAddress().getAddress()))
+                      .forEach(player -> {
+                        builder.suggest(player.getUsername());
+                        builder.suggest(player.getRemoteAddress().getAddress().getHostAddress());
+                      });
               return builder.buildFuture();
             })
             .executes(context -> {
@@ -201,19 +211,5 @@ public class MaintenanceCommand {
         return null;
       }
     }
-  }
-
-  /**
-   * Retrieves a set of online players whose addresses are present in the kick whitelist.
-   *
-   * @param plugin The FastMOTD plugin instance.
-   * @return A set of online players whose addresses are present in the kick whitelist.
-  */
-  private static Set<String> getOnlinePlayersFromWhitelist(final FastMOTD plugin) {
-    final Set<InetAddress> addresses = plugin.getKickWhitelist();
-    return plugin.getServer().getAllPlayers().stream()
-            .filter(player -> addresses.contains(player.getRemoteAddress().getAddress()))
-            .map(player -> player.getUsername() + "(" + player.getRemoteAddress().getAddress().getHostName() + ")")
-            .collect(Collectors.toSet());
   }
 }

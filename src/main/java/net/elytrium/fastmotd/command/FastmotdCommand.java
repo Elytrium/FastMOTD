@@ -23,8 +23,8 @@ import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
+import net.elytrium.serializer.placeholders.Placeholders;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 
 public class FastmotdCommand {
@@ -36,12 +36,9 @@ public class FastmotdCommand {
    * @return The maintenance command.
   */
   public static BrigadierCommand createBrigadierCommand(final FastMOTD plugin, final ComponentSerializer<Component, Component, String> serializer) {
-    final String PREFIX = Settings.IMP.PREFIX + " ";
     final Component usageComponent = serializer.deserialize(String.join("\n", Settings.IMP.MAIN.MESSAGES.USAGE));
-    final Component infoComponent = serializer.deserialize(String.join("\n", Settings.IMP.MAIN.MESSAGES.INFO));
-    final Component reloadComponent = serializer.deserialize(PREFIX +  Settings.IMP.MAIN.MESSAGES.RELOAD);
-    final Component yesComponent = serializer.deserialize(Settings.IMP.MAIN.MESSAGES.YES);
-    final Component noComponent = serializer.deserialize(Settings.IMP.MAIN.MESSAGES.NO);
+    final Component reloadComponent = serializer.deserialize(Settings.IMP.MAIN.MESSAGES.RELOAD);
+    final String infoString = String.join("\n", Settings.IMP.MAIN.MESSAGES.INFO);
 
     LiteralCommandNode<CommandSource> fastmotdNode = BrigadierCommand.literalArgumentBuilder("fastmotd")
         .requires(source -> source.hasPermission("fastmotd.reload") || source.hasPermission("fastmotd.info"))
@@ -53,11 +50,10 @@ public class FastmotdCommand {
         .then(BrigadierCommand.literalArgumentBuilder("info")
           .requires(source -> source.hasPermission("fastmotd.info"))
           .executes(context -> {
-            final TextReplacementConfig maintenanceReplacement = TextReplacementConfig.builder()
-                .matchLiteral("{MAINTENANCE_ENABLED}")
-                .replacement(Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED ? yesComponent : noComponent)
-                .build();
-            context.getSource().sendMessage(infoComponent.replaceText(maintenanceReplacement));
+            context.getSource().sendMessage(serializer.deserialize(Placeholders.replace(
+                    infoString,
+                    Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED ? Settings.IMP.MAIN.MESSAGES.YES : Settings.IMP.MAIN.MESSAGES.NO
+                    )));
             return Command.SINGLE_SUCCESS;
           })
         )

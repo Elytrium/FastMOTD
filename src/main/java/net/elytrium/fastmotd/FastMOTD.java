@@ -220,7 +220,7 @@ public class FastMOTD {
     }).collect(Collectors.toSet());
 
     if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
-      this.kickNotWhitelist();
+      this.kickNotWhitelisted();
     }
 
     this.generateMOTDGenerators(serializer, Settings.IMP.MAIN.VERSION_NAME, Settings.IMP.MAIN.DESCRIPTIONS,
@@ -388,7 +388,7 @@ public class FastMOTD {
     this.preparedPacketFactory.inject(false, connection, pipeline);
   }
 
-  public void kickNotWhitelist() {
+  public void kickNotWhitelisted() {
     if (!Settings.IMP.MAINTENANCE.SHOULD_KICK_ONLINE) {
       return;
     }
