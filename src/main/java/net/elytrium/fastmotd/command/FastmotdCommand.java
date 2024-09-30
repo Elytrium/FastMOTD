@@ -23,7 +23,6 @@ import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
-import net.elytrium.serializer.placeholders.Placeholders;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 
@@ -50,10 +49,12 @@ public class FastmotdCommand {
         .then(BrigadierCommand.literalArgumentBuilder("info")
           .requires(source -> source.hasPermission("fastmotd.info"))
           .executes(context -> {
-            context.getSource().sendMessage(serializer.deserialize(Placeholders.replace(
-                    infoString,
-                    Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED ? Settings.IMP.MAIN.MESSAGES.YES : Settings.IMP.MAIN.MESSAGES.NO
-                    )));
+            context.getSource().sendMessage(serializer.deserialize(infoString
+                            .replace(
+                                    "{MAINTENANCE_ENABLED}",
+                                    Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED ? Settings.IMP.MAIN.MESSAGES.YES : Settings.IMP.MAIN.MESSAGES.NO
+                            )
+                    ));
             return Command.SINGLE_SUCCESS;
           })
         )

@@ -98,7 +98,6 @@ public class Settings extends YamlSerializable {
 
     public static class MESSAGES {
       public List<String> USAGE = List.of("<gold><bold>FastMOTD command usage:</bold></gold>", " <gold>/fastmotd info</gold>", " <gold>/fastmotd reload</gold>");
-      @RegisterPlaceholders("{MAINTENANCE_ENABLED}")
       public List<String> INFO = List.of("<gold><bold>FastMOTD Info:</bold></gold>", " Maintenance status: {MAINTENANCE_ENABLED}");
       public String YES  = "<green>✓</green>";
       public String NO  = "<red>✕</red>";
