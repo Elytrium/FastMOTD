@@ -23,6 +23,7 @@ import net.elytrium.commons.kyori.serialization.Serializers;
 import net.elytrium.serializer.annotations.Comment;
 import net.elytrium.serializer.annotations.CommentValue;
 import net.elytrium.serializer.annotations.Final;
+import net.elytrium.serializer.annotations.RegisterPlaceholders;
 import net.elytrium.serializer.language.object.YamlSerializable;
 
 public class Settings extends YamlSerializable {
@@ -92,6 +93,16 @@ public class Settings extends YamlSerializable {
     }
 
     public Map<String, DOMAIN_MOTD_NODE> DOMAINS = Map.of("example.com:25565", new DOMAIN_MOTD_NODE());
+
+    public MESSAGES MESSAGES = new MESSAGES();
+
+    public static class MESSAGES {
+      public List<String> USAGE = List.of("<gold><bold>FastMOTD command usage:</bold></gold>", " <gold>/fastmotd info</gold>", " <gold>/fastmotd reload</gold>");
+      public List<String> INFO = List.of("<gold><bold>FastMOTD Info:</bold></gold>", " Maintenance status: {MAINTENANCE_ENABLED}");
+      public String YES  = "<green>✓</green>";
+      public String NO  = "<red>✕</red>";
+      public String RELOAD  = "FastMOTD <gold>>></gold> Reloaded successfully!";
+    }
   }
 
   public MAINTENANCE MAINTENANCE = new MAINTENANCE();
@@ -100,6 +111,8 @@ public class Settings extends YamlSerializable {
     public boolean MAINTENANCE_ENABLED = false;
     public boolean SHOW_VERSION = true;
     public boolean SHOULD_KICK_ON_JOIN = true;
+    @Comment(@CommentValue("This parameter determines whether to remove non-whitelisted players from the game when maintenance mode is activated."))
+    public boolean SHOULD_KICK_ONLINE = false;
     public List<String> KICK_WHITELIST = List.of("127.0.0.1");
     public String KICK_MESSAGE = "<red>Try to join the server later</red>";
     public String VERSION_NAME = "MAINTENANCE MODE ENABLED!!";
@@ -128,10 +141,20 @@ public class Settings extends YamlSerializable {
 
     public Map<String, DOMAIN_MOTD_NODE> DOMAINS = Map.of("example.com:25565", new DOMAIN_MOTD_NODE());
 
-    public COMMAND COMMAND = new COMMAND();
+    public MESSAGES MESSAGES = new MESSAGES();
 
-    public static class COMMAND {
-      public String USAGE = "FastMOTD <gold>>></gold> Usage: <gold>/maintenance <off|on|toggle></gold>";
+    public static class MESSAGES {
+      public List<String> USAGE = List.of("<gold><bold>FastMOTD maintenance command usage:</bold></gold>", " <gold>/maintenance <off | on | toggle></gold> - change maintenance mode", " <gold>/maintenance list [-p]</gold> - get all ip addresses in whitelist ([-p] - get all online players in whitelist)", " <gold>/maintenance <add | remove> <player | ip></gold> - add/remove ip (or current player ip) from whitelist");
+      public String OFF = "FastMOTD <gold>>></gold> You have <red>disabled</red> the maintenance mode!";
+      public String ON = "FastMOTD <gold>>></gold> You have <green>enabled</green> maintenance mode!";
+      @RegisterPlaceholders("{KICK_WHITELIST}")
+      public String LIST = "FastMOTD <gold>>></gold> Whitelist: <gold>{KICK_WHITELIST}</gold>";
+      public String LIST_PLAYER_FORMAT = "<gold>{PLAYER}</gold> <grey>({IP})</grey>";
+      public String SUCCESSFULLY_ADDED  = "FastMOTD <gold>>></gold> You have successfully added the IP address to the whitelist!";
+      public String SUCCESSFULLY_REMOVED  = "FastMOTD <gold>>></gold> You have successfully removed the IP address to the whitelist!";
+      public String INVALID_INPUT  = "FastMOTD <gold>>></gold> This is not an online player or IP address.";
+      public String ALREADY_IN  = "FastMOTD <gold>>></gold> This IP address has already been added!";
+      public String NOT_IN_WHITELIST  = "FastMOTD <gold>>></gold> This IP address has not yet been added!";
     }
   }
 
