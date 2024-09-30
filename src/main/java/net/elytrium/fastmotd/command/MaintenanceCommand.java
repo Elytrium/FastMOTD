@@ -162,8 +162,8 @@ public class MaintenanceCommand {
                       .filter(player -> plugin.checkKickWhitelist(player.getRemoteAddress().getAddress()))
                       .forEach(player -> {
                         builder.suggest(player.getUsername());
-                        builder.suggest(player.getRemoteAddress().getAddress().getHostAddress());
                       });
+              plugin.getKickWhitelist().forEach(address -> builder.suggest(address.getHostAddress()));
               return builder.buildFuture();
             })
             .executes(context -> {
