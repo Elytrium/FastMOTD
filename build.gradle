@@ -3,9 +3,9 @@
 plugins {
     id("java")
     id("checkstyle")
-    id("com.github.spotbugs").version("5.0.7")
+    id("com.github.spotbugs").version("6.1.7")
     id("org.cadixdev.licenser").version("0.6.1")
-    id("com.github.johnrengelman.shadow").version("7.1.2")
+    id("com.gradleup.shadow").version("8.3.6")
 }
 
 setGroup("net.elytrium")
@@ -31,10 +31,6 @@ repositories {
         setName("papermc-repo")
         setUrl("https://repo.papermc.io/repository/maven-public/")
     }
-    maven() {
-        setName("sonatype-snapshots-repo")
-        setUrl("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-    }
 }
 
 dependencies {
@@ -44,10 +40,10 @@ dependencies {
     implementation("net.elytrium:fastprepare:1.0.11")
     implementation("net.elytrium:serializer:1.1.1")
     implementation('it.unimi.dsi:fastutil-core:8.5.11')
-    compileOnly("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
-    annotationProcessor("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
-    compileOnly("com.velocitypowered:velocity-proxy:3.3.0-SNAPSHOT")
-    compileOnly('com.github.spotbugs:spotbugs-annotations:4.7.3')
+    compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
+    annotationProcessor("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
+    compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT")
+    compileOnly('com.github.spotbugs:spotbugs-annotations:4.9.3')
     // Needs for some velocity methods.
     compileOnly('io.netty:netty-codec:4.1.86.Final')
     compileOnly('io.netty:netty-handler:4.1.86.Final')
