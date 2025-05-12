@@ -24,6 +24,7 @@ import com.velocitypowered.proxy.network.Connections;
 import com.velocitypowered.proxy.protocol.MinecraftPacket;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
+import com.velocitypowered.proxy.protocol.netty.MinecraftVarintFrameDecoder;
 import com.velocitypowered.proxy.protocol.packet.HandshakePacket;
 import com.velocitypowered.proxy.protocol.packet.LegacyHandshakePacket;
 import com.velocitypowered.proxy.protocol.packet.LegacyPingPacket;
@@ -34,6 +35,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOutboundBuffer;
+import io.netty.channel.ChannelPipeline;
 import java.net.InetSocketAddress;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
@@ -143,8 +145,14 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
       this.protocolVersion = handshake.getProtocolVersion();
       this.serverAddress = cleanHost(handshake.getServerAddress()) + ":" + handshake.getPort();
-      this.channel.pipeline().remove(Connections.FRAME_ENCODER);
-      this.channel.pipeline().get(MinecraftDecoder.class).setState(StateRegistry.STATUS);
+
+      ChannelPipeline pipeline = this.channel.pipeline();
+      pipeline.remove(Connections.FRAME_ENCODER);
+      pipeline.get(MinecraftDecoder.class).setState(StateRegistry.STATUS);
+      MinecraftVarintFrameDecoder frameDecoder = pipeline.get(MinecraftVarintFrameDecoder.class);
+      if (frameDecoder != null) {
+        frameDecoder.setState(StateRegistry.STATUS);
+      }
 
       if (Settings.IMP.MAIN.LOG_PINGS) {
         this.plugin.getLogger().info("{} is pinging the server with version {}", this.connection.getRemoteAddress(), this.protocolVersion);
