@@ -18,6 +18,7 @@
 package net.elytrium.fastmotd;
 
 import com.google.inject.Inject;
+import com.imaginarycode.minecraft.redisbungee.AbstractRedisBungeeAPI;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.EventManager;
 import com.velocitypowered.api.event.Subscribe;
@@ -97,6 +98,7 @@ public class FastMOTD {
   private final Int2IntMap maintenanceProtocolPointers = new Int2IntOpenHashMap();
   private final Map<String, MOTDGenerator> domainMOTD = new HashMap<>();
   private final Map<String, MOTDGenerator> domainMaintenanceMOTD = new HashMap<>();
+  private final boolean redisBungeePresent;
   private PreparedPacketFactory preparedPacketFactory;
   private ScheduledTask updater;
   private PreparedPacket kickReason;
@@ -120,6 +122,8 @@ public class FastMOTD {
     this.server = (VelocityServer) server;
     this.metricsFactory = metricsFactory;
     this.configPath = dataDirectory.resolve("config.yml");
+    this.redisBungeePresent = server.getPluginManager().getPlugin("redisbungee").isPresent()
+            || classPresent("com.imaginarycode.minecraft.redisbungee.AbstractRedisBungeeAPI");
   }
 
   @Subscribe
@@ -333,8 +337,21 @@ public class FastMOTD {
     }
   }
 
+  private int getPlayerCount() {
+    if (this.redisBungeePresent) {
+      try {
+        // Global, cross-proxy player count
+        return AbstractRedisBungeeAPI.getAbstractRedisBungeeAPI().getPlayerCount();
+      } catch (Throwable t) {
+        // Ignore
+      }
+    }
+    // Local proxy player count
+    return this.server.getPlayerCount();
+  }
+
   private int getOnline() {
-    int online = this.server.getPlayerCount() + Settings.IMP.MAIN.FAKE_ONLINE_ADD_SINGLE;
+    int online = this.getPlayerCount() + Settings.IMP.MAIN.FAKE_ONLINE_ADD_SINGLE;
     return online * (Settings.IMP.MAIN.FAKE_ONLINE_ADD_PERCENT + 100) / 100;
   }
 
@@ -401,5 +418,14 @@ public class FastMOTD {
 
     VARIABLE,
     ADD_SOME
+  }
+
+  private static boolean classPresent(String name) {
+    try {
+      Class.forName(name, false, FastMOTD.class.getClassLoader());
+      return true;
+    } catch (ClassNotFoundException e) {
+      return false;
+    }
   }
 }

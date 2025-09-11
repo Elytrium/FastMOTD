@@ -31,6 +31,10 @@ repositories {
         setName("papermc-repo")
         setUrl("https://repo.papermc.io/repository/maven-public/")
     }
+    maven {
+        setName("jitpack-repo")
+        setUrl("https://jitpack.io")
+    }
 }
 
 dependencies {
@@ -49,6 +53,7 @@ dependencies {
     compileOnly('io.netty:netty-handler:4.1.86.Final')
 
     implementation("org.bstats:bstats-velocity:3.0.0")
+    compileOnly('com.github.proxiodev.redisbungee:RedisBungee-API:0.12.6')
 }
 
 shadowJar {
