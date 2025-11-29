@@ -22,17 +22,17 @@ import com.velocitypowered.api.event.connection.DisconnectEvent;
 import net.elytrium.fastmotd.FastMOTD;
 import net.kyori.adventure.text.Component;
 
-public class DisconnectOnZeroPlayersListener {
+public class ShutdownOnZeroPlayersListener {
 
   private final FastMOTD plugin;
 
-  public DisconnectOnZeroPlayersListener(FastMOTD plugin) {
+  public ShutdownOnZeroPlayersListener(FastMOTD plugin) {
     this.plugin = plugin;
   }
 
   @Subscribe
   public void onDisconnect(DisconnectEvent event) {
-    if (this.plugin.getServer().getAllPlayers().size() == 0) {
+    if (this.plugin.getServer().getAllPlayers().isEmpty()) {
       this.plugin.getServer().shutdown(Component.text("FastMOTD -> shutdown on zero players"));
     }
   }

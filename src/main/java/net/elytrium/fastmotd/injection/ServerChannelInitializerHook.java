@@ -35,7 +35,7 @@ public class ServerChannelInitializerHook extends ChannelInitializer<Channel> {
 
   private static final MethodHandle initChannel;
   private final FastMOTD plugin;
-  private final ChannelInitializer<?> oldHook;
+  private final ChannelInitializer<?> original;
 
   static {
     try {
@@ -46,9 +46,9 @@ public class ServerChannelInitializerHook extends ChannelInitializer<Channel> {
     }
   }
 
-  public ServerChannelInitializerHook(FastMOTD plugin, ChannelInitializer<?> oldHook) {
+  public ServerChannelInitializerHook(FastMOTD plugin, ChannelInitializer<?> original) {
     this.plugin = plugin;
-    this.oldHook = oldHook;
+    this.original = original;
   }
 
   @Override
@@ -61,7 +61,7 @@ public class ServerChannelInitializerHook extends ChannelInitializer<Channel> {
     }
 
     try {
-      initChannel.invokeExact(this.oldHook, ch);
+      initChannel.invokeExact(this.original, ch);
     } catch (Throwable e) {
       throw new ReflectionException(e);
     }

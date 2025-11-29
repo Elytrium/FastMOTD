@@ -63,7 +63,7 @@ import net.elytrium.fastmotd.command.MaintenanceCommand;
 import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.listener.CompatPingListener;
-import net.elytrium.fastmotd.listener.DisconnectOnZeroPlayersListener;
+import net.elytrium.fastmotd.listener.ShutdownOnZeroPlayersListener;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.fastprepare.PreparedPacket;
 import net.elytrium.fastprepare.PreparedPacketFactory;
@@ -126,8 +126,8 @@ public class FastMOTD {
   public void onProxyInitialization(ProxyInitializeEvent event) {
     try {
       ConnectionManager cm = (ConnectionManager) connectionManager.get(this.server);
-      ChannelInitializer<?> oldInitializer = (ChannelInitializer<?>) initializer.get(cm.serverChannelInitializer);
-      initializer.set(cm.serverChannelInitializer, new ServerChannelInitializerHook(this, oldInitializer));
+      ChannelInitializer<?> oldHook = (ChannelInitializer<?>) initializer.get(cm.serverChannelInitializer);
+      initializer.set(cm.serverChannelInitializer, new ServerChannelInitializerHook(this, oldHook));
       this.logger.info("Hooked into ServerChannelInitializer");
     } catch (IllegalAccessException e) {
       this.logger.info("Error while hooking into ServerChannelInitializer");
@@ -135,7 +135,7 @@ public class FastMOTD {
     }
 
     this.preparedPacketFactory =
-        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false, true);
+        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false, true, false);
 
     this.reload();
   }
@@ -187,7 +187,7 @@ public class FastMOTD {
     eventManager.register(this, new CompatPingListener(this));
 
     if (Settings.IMP.SHUTDOWN_SCHEDULER.SHUTDOWN_SCHEDULER_ENABLED && Settings.IMP.SHUTDOWN_SCHEDULER.SHUTDOWN_ON_ZERO_PLAYERS) {
-      eventManager.register(this, new DisconnectOnZeroPlayersListener(this));
+      eventManager.register(this, new ShutdownOnZeroPlayersListener(this));
     }
 
     if (this.updater != null) {
