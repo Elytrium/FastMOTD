@@ -3,17 +3,17 @@
 plugins {
     id("java")
     id("checkstyle")
-    id("com.github.spotbugs").version("6.1.7")
+    id("com.github.spotbugs").version("6.4.8")
     id("org.cadixdev.licenser").version("0.6.1")
-    id("com.gradleup.shadow").version("8.3.6")
+    id("com.gradleup.shadow").version("9.3.2")
 }
 
 setGroup("net.elytrium")
-setVersion("1.0.9")
+setVersion("1.0.10")
 
 java {
-    setSourceCompatibility(JavaVersion.VERSION_17)
-    setTargetCompatibility(JavaVersion.VERSION_17)
+    setSourceCompatibility(JavaVersion.VERSION_21)
+    setTargetCompatibility(JavaVersion.VERSION_21)
 }
 
 compileJava {
@@ -40,15 +40,15 @@ dependencies {
     implementation("net.elytrium:fastprepare:1.0.13")
     implementation("net.elytrium:serializer:1.1.1")
     implementation("it.unimi.dsi:fastutil-core:8.5.18")
-    compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
-    annotationProcessor("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
-    compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT")
-    compileOnly("com.github.spotbugs:spotbugs-annotations:4.9.3")
+    compileOnly("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
+    annotationProcessor("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
+    compileOnly("com.velocitypowered:velocity-proxy:3.5.0-SNAPSHOT")
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.9.8")
 
-    compileOnly("io.netty:netty-codec:4.2.7.Final")
-    compileOnly("io.netty:netty-handler:4.2.7.Final")
+    compileOnly("io.netty:netty-codec:4.2.10.Final")
+    compileOnly("io.netty:netty-handler:4.2.10.Final")
 
-    implementation("org.bstats:bstats-velocity:3.0.0")
+    implementation("org.bstats:bstats-velocity:3.2.1")
 }
 
 shadowJar {
@@ -112,7 +112,7 @@ license {
 }
 
 checkstyle {
-    setToolVersion("10.1")
+    setToolVersion("13.3.0")
     setConfigFile(file("${this.getRootDir()}/config/checkstyle/checkstyle.xml"))
     setConfigProperties("configDirectory": "${this.getRootDir()}/config/checkstyle")
 
