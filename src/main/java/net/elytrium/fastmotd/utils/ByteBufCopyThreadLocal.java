@@ -30,7 +30,11 @@ public class ByteBufCopyThreadLocal extends ThreadLocal<ByteBuf> {
   public ByteBufCopyThreadLocal(ByteBuf from) {
     super();
 
-    for (int i = 0; i < Runtime.getRuntime().availableProcessors() * 2; ++i) {
+    int eventLoopThreads = Math.max(1, Integer.getInteger(
+        "io.netty.eventLoopThreads",
+        Math.max(1, Runtime.getRuntime().availableProcessors() * 2)
+    ));
+    for (int i = 0; i < eventLoopThreads; ++i) {
       this.byteBuffers.add(from.copy());
     }
 
