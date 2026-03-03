@@ -8,9 +8,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Bind maven.elytrium.net to specific address (temporary)
-        run: |
-          echo "87.251.74.5 maven.elytrium.net" | sudo tee -a /etc/hosts
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Set up JDK
