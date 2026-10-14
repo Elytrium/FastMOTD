@@ -20,6 +20,8 @@ package net.elytrium.fastmotd.listener;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyPingEvent;
 import com.velocitypowered.api.proxy.InboundConnection;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import net.elytrium.fastmotd.FastMOTD;
 
 public class CompatPingListener {
@@ -33,10 +35,18 @@ public class CompatPingListener {
   @Subscribe
   public void onPing(ProxyPingEvent event) {
     InboundConnection connection = event.getConnection();
+
+    // NEW: resolve client IP for GeoIP-based localization
+    InetAddress clientIp = null;
+    if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
+      clientIp = socketAddress.getAddress();
+    }
+
     event.setPing(this.plugin.getNextCompat(
-        connection.getProtocolVersion(),
-        connection.getVirtualHost()
-            .map(address -> address.getHostName() + ":" + address.getPort())
-            .orElse(null)));
+            connection.getProtocolVersion(),
+            connection.getVirtualHost()
+                    .map(address -> address.getHostName() + ":" + address.getPort())
+                    .orElse(null),
+            clientIp));
   }
 }

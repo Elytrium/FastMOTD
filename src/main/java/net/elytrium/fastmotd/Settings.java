@@ -33,12 +33,12 @@ public class Settings extends YamlSerializable {
   public String VERSION = BuildConstants.VERSION;
 
   @Comment({
-      @CommentValue("Available serializers:"),
-      @CommentValue("LEGACY_AMPERSAND - \"&c&lExample &c&9Text\"."),
-      @CommentValue("LEGACY_SECTION - \"§c§lExample §c§9Text\"."),
-      @CommentValue("MINIMESSAGE - \"<bold><red>Example</red> <blue>Text</blue></bold>\". (https://webui.adventure.kyori.net/)"),
-      @CommentValue("GSON - \"[{\"text\":\"Example\",\"bold\":true,\"color\":\"red\"},{\"text\":\" \",\"bold\":true},{\"text\":\"Text\",\"bold\":true,\"color\":\"blue\"}]\". (https://minecraft.tools/en/json_text.php/)"),
-      @CommentValue("GSON_COLOR_DOWNSAMPLING - Same as GSON, but uses downsampling."),
+          @CommentValue("Available serializers:"),
+          @CommentValue("LEGACY_AMPERSAND - \"&c&lExample &c&9Text\"."),
+          @CommentValue("LEGACY_SECTION - \"§c§lExample §c§9Text\"."),
+          @CommentValue("MINIMESSAGE - \"<bold><red>Example</red> <blue>Text</blue></bold>\". (https://webui.adventure.kyori.net/)"),
+          @CommentValue("GSON - \"[{\"text\":\"Example\",\"bold\":true,\"color\":\"red\"},{\"text\":\" \",\"bold\":true},{\"text\":\"Text\",\"bold\":true,\"color\":\"blue\"}]\". (https://minecraft.tools/en/json_text.php/)"),
+          @CommentValue("GSON_COLOR_DOWNSAMPLING - Same as GSON, but uses downsampling."),
   })
   public Serializers SERIALIZER = Serializers.MINIMESSAGE;
 
@@ -53,17 +53,17 @@ public class Settings extends YamlSerializable {
     @Comment(@CommentValue("How frequently online player count will be updated (in ms)"))
     public long UPDATE_RATE = 3000;
     @Comment({
-        @CommentValue("VARIABLE - from max-count parameter"),
-        @CommentValue("ADD_SOME - will add up the number from max-count parameter to current online players amount")
+            @CommentValue("VARIABLE - from max-count parameter"),
+            @CommentValue("ADD_SOME - will add up the number from max-count parameter to current online players amount")
     })
     public FastMOTD.MaxCountType MAX_COUNT_TYPE = FastMOTD.MaxCountType.VARIABLE;
     public int MAX_COUNT = 4444;
     public int FAKE_ONLINE_ADD_SINGLE = 5;
     public int FAKE_ONLINE_ADD_PERCENT = 20;
     @Comment({
-        @CommentValue("Accepted values: from 0.0 to 1.0."),
-        @CommentValue("Keep this value as low as possible"),
-        @CommentValue("Set -1 to disable PNG recompression")
+            @CommentValue("Accepted values: from 0.0 to 1.0."),
+            @CommentValue("Keep this value as low as possible"),
+            @CommentValue("Set -1 to disable PNG recompression")
     })
     public double PNG_QUALITY = 0.0;
     @Comment(@CommentValue("Write packets outside of Netty pipeline to avoid plugins that modify packets (e.g. PacketEvents)"))
@@ -71,16 +71,16 @@ public class Settings extends YamlSerializable {
     public boolean LOG_PINGS = false;
     public boolean LOG_IMPROPER_PINGS = false;
     @Comment({
-        @CommentValue("Enabling this will allow non-vanilla ping packets sequence,"),
-        @CommentValue("but will open your server to nullping attacks")
+            @CommentValue("Enabling this will allow non-vanilla ping packets sequence,"),
+            @CommentValue("but will open your server to nullping attacks")
     })
     public boolean ALLOW_IMPROPER_PINGS = false;
 
     public VERSIONS VERSIONS = new VERSIONS();
 
     @Comment({
-        @CommentValue("Separate MOTDs/favicons/information for different protocol versions"),
-        @CommentValue("See https://wiki.vg/Protocol_version_numbers"),
+            @CommentValue("Separate MOTDs/favicons/information for different protocol versions"),
+            @CommentValue("See https://wiki.vg/Protocol_version_numbers"),
     })
     public static class VERSIONS {
       @Comment(@CommentValue("{} = disabled"))
@@ -92,6 +92,100 @@ public class Settings extends YamlSerializable {
     }
 
     public Map<String, DOMAIN_MOTD_NODE> DOMAINS = Map.of("example.com:25565", new DOMAIN_MOTD_NODE());
+
+    // ==================== NEW: GeoIP localization ====================
+
+    @Comment({
+            @CommentValue("Path to the GeoIP database file (.mmdb) relative to the plugin's data directory."),
+            @CommentValue("Used only when GEOIP_AUTO_UPDATE is false."),
+            @CommentValue("Supports MaxMind GeoLite2-Country.mmdb and DB-IP IP-to-Country Lite (same format)."),
+            @CommentValue("MaxMind: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data"),
+            @CommentValue("DB-IP (no registration): https://db-ip.com/db/download/ip-to-country-lite"),
+            @CommentValue("Leave empty to disable GeoIP-based localization entirely.")
+    })
+    public String GEOIP_DATABASE = "";
+
+    @Comment({
+            @CommentValue("Auto-download / auto-update the GeoIP database from GitHub."),
+            @CommentValue("Source: https://github.com/jcjc-dev/mmdb-latest (daily automated releases)."),
+            @CommentValue("When enabled, GEOIP_DATABASE is ignored and the file is managed by the plugin.")
+    })
+    public boolean GEOIP_AUTO_UPDATE = true;
+
+    @Comment({
+            @CommentValue("Which database to auto-download."),
+            @CommentValue("MAXMIND - GeoLite2-Country (attribution required, 30-day retention policy)."),
+            @CommentValue("DBIP    - DB-IP Lite Country (CC BY 4.0, no registration required).")
+    })
+    public GeoIpSource GEOIP_AUTO_UPDATE_SOURCE = GeoIpSource.DBIP;
+
+    @Comment({
+            @CommentValue("Re-download the database if the local file is older than N days."),
+            @CommentValue("DB-IP updates monthly, MaxMind - weekly. 7 is a safe default.")
+    })
+    public int GEOIP_UPDATE_INTERVAL_DAYS = 7;
+
+    @Comment({
+            @CommentValue("Language code (ISO 639-1) used when the country is unknown or not mapped."),
+            @CommentValue("Must be one of the keys defined in LANGUAGES below.")
+    })
+    public String GEOIP_FALLBACK_LANGUAGE = "en";
+
+    @Comment({
+            @CommentValue("Map ISO 3166-1 alpha-2 country code -> ISO 639-1 language code."),
+            @CommentValue("Example: RU -> ru, DE -> de, FR -> fr. Countries not listed fall back to GEOIP_FALLBACK_LANGUAGE.")
+    })
+    public Map<String, String> GEOIP_COUNTRY_TO_LANGUAGE = Map.ofEntries(
+            Map.entry("RU", "ru"),
+            Map.entry("BY", "ru"),
+            Map.entry("KZ", "ru"),
+            Map.entry("KG", "ru"),
+            Map.entry("TJ", "ru"),
+            Map.entry("TM", "ru"),
+            Map.entry("UZ", "ru"),
+            Map.entry("UA", "uk"),
+            Map.entry("DE", "de"),
+            Map.entry("AT", "de"),
+            Map.entry("CH", "de"),
+            Map.entry("FR", "fr"),
+            Map.entry("BE", "fr"),
+            Map.entry("ES", "es"),
+            Map.entry("MX", "es"),
+            Map.entry("AR", "es"),
+            Map.entry("CO", "es"),
+            Map.entry("CL", "es"),
+            Map.entry("PE", "es"),
+            Map.entry("VE", "es"),
+            Map.entry("BR", "pt"),
+            Map.entry("PT", "pt"),
+            Map.entry("PL", "pl"),
+            Map.entry("TR", "tr"),
+            Map.entry("CN", "zh"),
+            Map.entry("TW", "zh"),
+            Map.entry("HK", "zh"),
+            Map.entry("SG", "zh"),
+            Map.entry("JP", "ja"),
+            Map.entry("KR", "ko")
+    );
+
+    @Comment({
+            @CommentValue("Per-language MOTD. The key is the ISO 639-1 language code (en, ru, de, ...)."),
+            @CommentValue("Selection priority: DOMAINS -> GeoIP (LANGUAGES) -> GEOIP_FALLBACK_LANGUAGE -> default MOTD."),
+            @CommentValue("Example config entry:"),
+            @CommentValue("  ru:"),
+            @CommentValue("    DESCRIPTION:"),
+            @CommentValue("      - \"<bold><red>FastMOTD</red></bold>{NL} -> \u0411\u044b\u0441\u0442\u0440\u043e.\""),
+            @CommentValue("    FAVICON:"),
+            @CommentValue("      - \"ru-icon.png\""),
+            @CommentValue("    INFORMATION:"),
+            @CommentValue("      - \"\u041f\u0440\u0438\u0432\u0435\u0442!\""),
+    })
+    public Map<String, DOMAIN_MOTD_NODE> LANGUAGES = Map.of(
+            "en", new DOMAIN_MOTD_NODE(),
+            "ru", new DOMAIN_MOTD_NODE()
+    );
+
+    // ==================== /NEW ====================
   }
 
   public MAINTENANCE MAINTENANCE = new MAINTENANCE();
@@ -114,8 +208,8 @@ public class Settings extends YamlSerializable {
     public VERSIONS VERSIONS = new VERSIONS();
 
     @Comment({
-        @CommentValue("Separate MOTDs/favicons/information for different protocol versions"),
-        @CommentValue("See https://wiki.vg/Protocol_version_numbers"),
+            @CommentValue("Separate MOTDs/favicons/information for different protocol versions"),
+            @CommentValue("See https://wiki.vg/Protocol_version_numbers"),
     })
     public static class VERSIONS {
       @Comment(@CommentValue("{} = disabled"))
@@ -127,6 +221,16 @@ public class Settings extends YamlSerializable {
     }
 
     public Map<String, DOMAIN_MOTD_NODE> DOMAINS = Map.of("example.com:25565", new DOMAIN_MOTD_NODE());
+
+    @Comment({
+            @CommentValue("Per-language MOTD for maintenance mode. Key = ISO 639-1 language code."),
+            @CommentValue("If a language is missing here, the corresponding key from MAIN.LANGUAGES is NOT used"),
+            @CommentValue("(maintenance mode has its own dedicated set of MOTDs)."),
+    })
+    public Map<String, DOMAIN_MOTD_NODE> LANGUAGES = Map.of(
+            "en", new DOMAIN_MOTD_NODE(),
+            "ru", new DOMAIN_MOTD_NODE()
+    );
 
     public COMMAND COMMAND = new COMMAND();
 
@@ -150,5 +254,17 @@ public class Settings extends YamlSerializable {
     public List<String> DESCRIPTION = List.of("Description for example.com");
     public List<String> FAVICON = List.of("example-com-server-icon.png");
     public List<String> INFORMATION = List.of("Information for example.com");
+  }
+
+  // NEW: enum для выбора источника GeoIP-базы
+  public enum GeoIpSource {
+    /**
+     * MaxMind GeoLite2-Country (requires attribution, 30-day retention policy).
+     */
+    MAXMIND,
+    /**
+     * DB-IP Lite Country (CC BY 4.0, no registration required).
+     */
+    DBIP
   }
 }

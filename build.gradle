@@ -45,6 +45,9 @@ dependencies {
     compileOnly("com.velocitypowered:velocity-proxy:3.5.0-SNAPSHOT")
     compileOnly("com.github.spotbugs:spotbugs-annotations:4.9.8")
 
+    implementation("com.maxmind.geoip2:geoip2:4.2.1")
+    implementation("com.maxmind.db:maxmind-db:3.1.1")
+
     compileOnly("io.netty:netty-codec:4.2.10.Final")
     compileOnly("io.netty:netty-handler:4.2.10.Final")
 
@@ -103,6 +106,8 @@ shadowJar {
 
     relocate("org.bstats", "net.elytrium.fastmotd.thirdparty.org.bstats")
     relocate("net.elytrium.fastprepare", "net.elytrium.fastmotd.thirdparty.fastprepare")
+    relocate("com.maxmind", "net.elytrium.fastmotd.thirdparty.maxmind")
+    relocate("com.fasterxml.jackson", "net.elytrium.fastmotd.thirdparty.jackson")
     relocate("net.elytrium.commons", "net.elytrium.fastmotd.thirdparty.commons")
     relocate("net.elytrium.serializer", "net.elytrium.fastmotd.thirdparty.serializer")
 }

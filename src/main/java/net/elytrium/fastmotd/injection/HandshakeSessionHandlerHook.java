@@ -36,6 +36,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPipeline;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import net.elytrium.fastmotd.FastMOTD;
 import net.elytrium.fastmotd.Settings;
@@ -43,7 +44,7 @@ import net.elytrium.fastmotd.Settings;
 public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
   private static final QuietRuntimeException UNEXPECTED_STATE =
-      new QuietRuntimeException("unexpected state");
+          new QuietRuntimeException("unexpected state");
 
   private enum State {
     REQUEST, PING, DONE
@@ -87,7 +88,7 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
     if (this.state != oldState) {
       if (Settings.IMP.MAIN.LOG_IMPROPER_PINGS) {
         this.plugin.getLogger().warn("{} has failed to ping this proxy due to improper packet order: from {} to {}->{}",
-            this.connection.getRemoteAddress(), this.state, oldState, newState);
+                this.connection.getRemoteAddress(), this.state, oldState, newState);
       }
 
       throw UNEXPECTED_STATE;
@@ -136,9 +137,9 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
 
         if (Settings.IMP.MAIN.LOG_PINGS) {
           this.plugin.getLogger().info(
-              "Unknown protocol version detected from {}, replaced with version {}",
-              this.connection.getRemoteAddress(),
-              ProtocolVersion.MAXIMUM_VERSION
+                  "Unknown protocol version detected from {}, replaced with version {}",
+                  this.connection.getRemoteAddress(),
+                  ProtocolVersion.MAXIMUM_VERSION
           );
         }
       }
@@ -159,8 +160,8 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
       }
       return true;
     } else if (handshake.getNextStatus() == StateRegistry.LOGIN_ID
-        && Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED && Settings.IMP.MAINTENANCE.SHOULD_KICK_ON_JOIN
-        && !this.plugin.checkKickWhitelist(((InetSocketAddress) this.connection.getRemoteAddress()).getAddress())) {
+            && Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED && Settings.IMP.MAINTENANCE.SHOULD_KICK_ON_JOIN
+            && !this.plugin.checkKickWhitelist(((InetSocketAddress) this.connection.getRemoteAddress()).getAddress())) {
       this.connection.setProtocolVersion(handshake.getProtocolVersion());
       this.channel.pipeline().remove(Connections.FRAME_ENCODER);
       this.plugin.inject(this.connection, this.channel.pipeline());
@@ -187,7 +188,9 @@ public class HandshakeSessionHandlerHook extends HandshakeSessionHandler {
       this.connection.close();
     } else if (packet instanceof StatusRequestPacket) {
       this.switchState(State.REQUEST, State.PING);
-      this.sendPacket(this.plugin.getNext(this.protocolVersion, this.serverAddress), true);
+      // NEW: pass client IP for GeoIP-based localization
+      InetAddress clientIp = ((InetSocketAddress) this.connection.getRemoteAddress()).getAddress();
+      this.sendPacket(this.plugin.getNext(this.protocolVersion, this.serverAddress, clientIp), true);
     } else {
       this.original.handleGeneric(packet);
     }

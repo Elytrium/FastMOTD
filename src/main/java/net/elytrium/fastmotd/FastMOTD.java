@@ -43,6 +43,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -64,6 +65,8 @@ import net.elytrium.fastmotd.command.ReloadCommand;
 import net.elytrium.fastmotd.injection.ServerChannelInitializerHook;
 import net.elytrium.fastmotd.listener.CompatPingListener;
 import net.elytrium.fastmotd.listener.ShutdownOnZeroPlayersListener;
+import net.elytrium.fastmotd.utils.GeoIpResolver;
+import net.elytrium.fastmotd.utils.GeoIpUpdater;
 import net.elytrium.fastmotd.utils.MOTDGenerator;
 import net.elytrium.fastprepare.PreparedPacket;
 import net.elytrium.fastprepare.PreparedPacketFactory;
@@ -73,14 +76,14 @@ import org.bstats.velocity.Metrics;
 import org.slf4j.Logger;
 
 @Plugin(
-    id = "fastmotd",
-    name = "FastMOTD",
-    version = BuildConstants.VERSION,
-    description = "MOTD plugin that uses FastPrepareAPI.",
-    url = "https://elytrium.net/",
-    authors = {
-        "Elytrium (https://elytrium.net/)",
-    }
+        id = "fastmotd",
+        name = "FastMOTD",
+        version = BuildConstants.VERSION,
+        description = "MOTD plugin that uses FastPrepareAPI.",
+        url = "https://elytrium.net/",
+        authors = {
+                "Elytrium (https://elytrium.net/)",
+        }
 )
 public class FastMOTD {
 
@@ -97,10 +100,15 @@ public class FastMOTD {
   private final Int2IntMap maintenanceProtocolPointers = new Int2IntOpenHashMap();
   private final Map<String, MOTDGenerator> domainMOTD = new HashMap<>();
   private final Map<String, MOTDGenerator> domainMaintenanceMOTD = new HashMap<>();
+  // NEW: language -> MOTDGenerator
+  private final Map<String, MOTDGenerator> languageMOTD = new HashMap<>();
+  private final Map<String, MOTDGenerator> languageMaintenanceMOTD = new HashMap<>();
   private PreparedPacketFactory preparedPacketFactory;
   private ScheduledTask updater;
   private PreparedPacket kickReason;
   private Set<InetAddress> kickWhitelist;
+  // NEW: GeoIP resolver (nullable)
+  private GeoIpResolver geoIpResolver;
 
   static {
     try {
@@ -135,7 +143,7 @@ public class FastMOTD {
     }
 
     this.preparedPacketFactory =
-        new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false, true, false);
+            new PreparedPacketFactory(PreparedPacket::new, StateRegistry.LOGIN, false, 1, 1, false, true, false);
 
     this.reload();
   }
@@ -161,10 +169,14 @@ public class FastMOTD {
       return;
     }
 
+    // Dispose old generators
     this.motdGenerators.forEach(MOTDGenerator::dispose);
     this.maintenanceMOTDGenerators.forEach(MOTDGenerator::dispose);
     this.domainMOTD.values().forEach(MOTDGenerator::dispose);
     this.domainMaintenanceMOTD.values().forEach(MOTDGenerator::dispose);
+    // NEW
+    this.languageMOTD.values().forEach(MOTDGenerator::dispose);
+    this.languageMaintenanceMOTD.values().forEach(MOTDGenerator::dispose);
 
     this.protocolPointers.clear();
     this.motdGenerators.clear();
@@ -174,13 +186,20 @@ public class FastMOTD {
     this.maintenanceMOTDGenerators.clear();
     this.domainMaintenanceMOTD.clear();
 
+    // NEW
+    this.languageMOTD.clear();
+    this.languageMaintenanceMOTD.clear();
+
+    // NEW: reload GeoIP
+    this.reloadGeoIp();
+
     CommandManager commandManager = this.server.getCommandManager();
     commandManager.unregister("fastmotdreload");
     commandManager.unregister("maintenance");
 
     commandManager.register("fastmotdreload", new ReloadCommand(this));
     commandManager.register("maintenance",
-        new MaintenanceCommand(this, serializer.deserialize(Settings.IMP.MAINTENANCE.COMMAND.USAGE)));
+            new MaintenanceCommand(this, serializer.deserialize(Settings.IMP.MAINTENANCE.COMMAND.USAGE)));
 
     EventManager eventManager = this.server.getEventManager();
     eventManager.unregisterListeners(this);
@@ -200,9 +219,9 @@ public class FastMOTD {
 
     Component kickReasonComponent = serializer.deserialize(Settings.IMP.MAINTENANCE.KICK_MESSAGE.replace("{NL}", "\n"));
     this.kickReason = this.preparedPacketFactory
-        .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
-        .prepare(version -> DisconnectPacket.create(kickReasonComponent, version, StateRegistry.LOGIN))
-        .build();
+            .createPreparedPacket(ProtocolVersion.MINIMUM_VERSION, ProtocolVersion.MAXIMUM_VERSION)
+            .prepare(version -> DisconnectPacket.create(kickReasonComponent, version, StateRegistry.LOGIN))
+            .build();
 
     this.kickWhitelist = Settings.IMP.MAINTENANCE.KICK_WHITELIST.stream().map((String host) -> {
       try {
@@ -212,30 +231,66 @@ public class FastMOTD {
       }
     }).collect(Collectors.toSet());
 
+    // NEW: передаём MAIN.LANGUAGES и languageMOTD
     this.generateMOTDGenerators(serializer, Settings.IMP.MAIN.VERSION_NAME, Settings.IMP.MAIN.DESCRIPTIONS,
             Settings.IMP.MAIN.FAVICONS, Settings.IMP.MAIN.INFORMATION, this.motdGenerators, this.protocolPointers,
             Settings.IMP.MAIN.VERSIONS.DESCRIPTIONS, Settings.IMP.MAIN.VERSIONS.FAVICONS, Settings.IMP.MAIN.VERSIONS.INFORMATION,
-            Settings.IMP.MAIN.DOMAINS, this.domainMOTD);
+            Settings.IMP.MAIN.DOMAINS, this.domainMOTD,
+            Settings.IMP.MAIN.LANGUAGES, this.languageMOTD);
 
+    // NEW: передаём MAINTENANCE.LANGUAGES и languageMaintenanceMOTD
     this.generateMOTDGenerators(serializer, Settings.IMP.MAINTENANCE.VERSION_NAME, Settings.IMP.MAINTENANCE.DESCRIPTIONS,
             Settings.IMP.MAINTENANCE.FAVICONS, Settings.IMP.MAINTENANCE.INFORMATION, this.maintenanceMOTDGenerators,
             this.maintenanceProtocolPointers, Settings.IMP.MAINTENANCE.VERSIONS.DESCRIPTIONS,
             Settings.IMP.MAINTENANCE.VERSIONS.FAVICONS, Settings.IMP.MAINTENANCE.VERSIONS.INFORMATION,
-            Settings.IMP.MAINTENANCE.DOMAINS, this.domainMaintenanceMOTD);
+            Settings.IMP.MAINTENANCE.DOMAINS, this.domainMaintenanceMOTD,
+            Settings.IMP.MAINTENANCE.LANGUAGES, this.languageMaintenanceMOTD);
 
     this.updater = this.server.getScheduler()
-        .buildTask(this, this::updateMOTD)
-        .repeat(Settings.IMP.MAIN.UPDATE_RATE, TimeUnit.MILLISECONDS)
-        .schedule();
+            .buildTask(this, this::updateMOTD)
+            .repeat(Settings.IMP.MAIN.UPDATE_RATE, TimeUnit.MILLISECONDS)
+            .schedule();
   }
 
+  private void reloadGeoIp() {
+    if (this.geoIpResolver != null) {
+      try {
+        this.geoIpResolver.close();
+      } catch (IOException e) {
+        this.logger.warn("Failed to close previous GeoIP resolver", e);
+      }
+      this.geoIpResolver = null;
+    }
+
+    String dbSetting = Settings.IMP.MAIN.GEOIP_DATABASE;
+    if (!Settings.IMP.MAIN.GEOIP_AUTO_UPDATE && (dbSetting == null || dbSetting.isEmpty())) {
+      return;
+    }
+
+    Path dbPath = new GeoIpUpdater(this, this.configPath.getParent()).ensureDatabase();
+    if (dbPath == null) {
+      this.logger.warn("GeoIP database unavailable, localization disabled");
+      return;
+    }
+
+    try {
+      this.geoIpResolver = new GeoIpResolver(dbPath);
+      this.logger.info("Loaded GeoIP database: {}", dbPath);
+    } catch (IOException e) {
+      this.logger.error("Failed to load GeoIP database from {}: {}", dbPath, e.getMessage());
+    }
+  }
+
+  // NEW parameter: languageMotd, languageDest
   private void generateMOTDGenerators(
           ComponentSerializer<Component, Component, String> serializer,
           String versionName, List<String> defaultDescriptions, List<String> defaultFavicons,
           List<String> defaultInformation, List<MOTDGenerator> dest, Int2IntMap destPointers,
           Map<String, List<String>> descriptionVersions, Map<String, List<String>> faviconVersions,
           Map<String, List<String>> informationVersions, Map<String, Settings.DOMAIN_MOTD_NODE> domainMotd,
-          Map<String, MOTDGenerator> domainDest) {
+          Map<String, MOTDGenerator> domainDest,
+          Map<String, Settings.DOMAIN_MOTD_NODE> languageMotd,
+          Map<String, MOTDGenerator> languageDest) {
     descriptionVersions = Objects.requireNonNullElseGet(descriptionVersions, HashMap::new);
     faviconVersions = Objects.requireNonNullElseGet(faviconVersions, HashMap::new);
     informationVersions = Objects.requireNonNullElseGet(informationVersions, HashMap::new);
@@ -244,7 +299,7 @@ public class FastMOTD {
     List<String> nonNullDefaultInformation = Objects.requireNonNullElseGet(defaultInformation, Collections::emptyList);
 
     MOTDGenerator defaultMotdGenerator =
-        new MOTDGenerator(this, serializer, versionName, nonNullDefaultDescriptions, nonNullDefaultFavicons, nonNullDefaultInformation);
+            new MOTDGenerator(this, serializer, versionName, nonNullDefaultDescriptions, nonNullDefaultFavicons, nonNullDefaultInformation);
     defaultMotdGenerator.generate();
     dest.add(defaultMotdGenerator);
 
@@ -289,6 +344,16 @@ public class FastMOTD {
       motdGenerator.generate();
       domainDest.put(domain, motdGenerator);
     });
+
+    // NEW: language MOTDs
+    if (languageMotd != null) {
+      languageMotd.forEach((lang, motdNode) -> {
+        MOTDGenerator motdGenerator = new MOTDGenerator(this, serializer, versionName,
+                motdNode.DESCRIPTION, motdNode.FAVICON, motdNode.INFORMATION);
+        motdGenerator.generate();
+        languageDest.put(lang, motdGenerator);
+      });
+    }
   }
 
   private void sortByProtocolVersion(Map<String, List<String>> src, Int2ObjectMap<List<String>> dest) {
@@ -316,6 +381,11 @@ public class FastMOTD {
       generator.update(max, online);
     }
 
+    // NEW
+    for (MOTDGenerator generator : this.languageMOTD.values()) {
+      generator.update(max, online);
+    }
+
     if (Settings.IMP.MAINTENANCE.OVERRIDE_MAX_ONLINE != -1) {
       max = Settings.IMP.MAINTENANCE.OVERRIDE_MAX_ONLINE;
     }
@@ -329,6 +399,11 @@ public class FastMOTD {
     }
 
     for (MOTDGenerator generator : this.domainMaintenanceMOTD.values()) {
+      generator.update(max, online);
+    }
+
+    // NEW
+    for (MOTDGenerator generator : this.languageMaintenanceMOTD.values()) {
       generator.update(max, online);
     }
   }
@@ -349,28 +424,93 @@ public class FastMOTD {
     return max;
   }
 
-  public ByteBuf getNext(ProtocolVersion version, String serverAddress) {
+  public ByteBuf getNext(ProtocolVersion version, String serverAddress, InetAddress clientIp) {
+    MOTDGenerator generator;
+    boolean replaceProtocol;
+
     if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
-      return this.domainMaintenanceMOTD.getOrDefault(serverAddress, this.maintenanceMOTDGenerators.get(
-              this.maintenanceProtocolPointers.getOrDefault(version.getProtocol(), 0)))
-              .getNext(version, !Settings.IMP.MAINTENANCE.SHOW_VERSION);
+      generator = this.resolveGenerator(
+              this.domainMaintenanceMOTD, this.languageMaintenanceMOTD,
+              this.maintenanceMOTDGenerators, this.maintenanceProtocolPointers,
+              version, serverAddress, clientIp);
+      replaceProtocol = !Settings.IMP.MAINTENANCE.SHOW_VERSION;
     } else {
-      return this.domainMOTD.getOrDefault(serverAddress, this.motdGenerators.get(
-              this.protocolPointers.getOrDefault(version.getProtocol(), 0)))
-              .getNext(version, true);
+      generator = this.resolveGenerator(
+              this.domainMOTD, this.languageMOTD,
+              this.motdGenerators, this.protocolPointers,
+              version, serverAddress, clientIp);
+      replaceProtocol = true;
     }
+
+    return generator.getNext(version, replaceProtocol);
   }
 
-  public ServerPing getNextCompat(ProtocolVersion version, String serverAddress) {
+  public ServerPing getNextCompat(ProtocolVersion version, String serverAddress, InetAddress clientIp) {
+    MOTDGenerator generator;
+    boolean replaceProtocol;
+
     if (Settings.IMP.MAINTENANCE.MAINTENANCE_ENABLED) {
-      return this.domainMaintenanceMOTD.getOrDefault(serverAddress, this.maintenanceMOTDGenerators.get(
-              this.maintenanceProtocolPointers.getOrDefault(version.getProtocol(), 0)))
-              .getNextCompat(version, !Settings.IMP.MAINTENANCE.SHOW_VERSION);
+      generator = this.resolveGenerator(
+              this.domainMaintenanceMOTD, this.languageMaintenanceMOTD,
+              this.maintenanceMOTDGenerators, this.maintenanceProtocolPointers,
+              version, serverAddress, clientIp);
+      replaceProtocol = !Settings.IMP.MAINTENANCE.SHOW_VERSION;
     } else {
-      return this.domainMOTD.getOrDefault(serverAddress, this.motdGenerators.get(
-              this.protocolPointers.getOrDefault(version.getProtocol(), 0)))
-              .getNextCompat(version, true);
+      generator = this.resolveGenerator(
+              this.domainMOTD, this.languageMOTD,
+              this.motdGenerators, this.protocolPointers,
+              version, serverAddress, clientIp);
+      replaceProtocol = true;
     }
+
+    return generator.getNextCompat(version, replaceProtocol);
+  }
+
+  /**
+   * Priority:
+   *   1. DOMAINS[serverAddress]
+   *   2. LANGUAGES[GeoIP(country)]
+   *   3. LANGUAGES[GEOIP_FALLBACK_LANGUAGE]
+   *   4. default generator by protocol
+   */
+  private MOTDGenerator resolveGenerator(
+          Map<String, MOTDGenerator> domainMap,
+          Map<String, MOTDGenerator> languageMap,
+          List<MOTDGenerator> defaults,
+          Int2IntMap pointers,
+          ProtocolVersion version,
+          String serverAddress,
+          InetAddress clientIp) {
+
+    // 1. exact domain match
+    MOTDGenerator generator = domainMap.get(serverAddress);
+    if (generator != null) {
+      return generator;
+    }
+
+    // 2. GeoIP -> language
+    if (this.geoIpResolver != null && clientIp != null) {
+      String country = this.geoIpResolver.resolveCountry(clientIp);
+      if (country != null) {
+        String lang = Settings.IMP.MAIN.GEOIP_COUNTRY_TO_LANGUAGE.get(country);
+        if (lang != null) {
+          MOTDGenerator byLang = languageMap.get(lang);
+          if (byLang != null) {
+            return byLang;
+          }
+        }
+      }
+    }
+
+    // 3. fallback language
+    MOTDGenerator fallback = languageMap.get(Settings.IMP.MAIN.GEOIP_FALLBACK_LANGUAGE);
+    if (fallback != null) {
+      return fallback;
+    }
+
+    // 4. last resort: default by protocol
+    int pointer = pointers.getOrDefault(version.getProtocol(), 0);
+    return defaults.get(pointer);
   }
 
   public void inject(MinecraftConnection connection, ChannelPipeline pipeline) {
